@@ -5,6 +5,7 @@ export interface Product extends Document {
   slug: string
   description?: string
   priceCents: number
+  compareAtPriceCents?: number
   currency: string
   imageUrl?: string
   galleryJson?: string
@@ -19,6 +20,7 @@ export interface ProductFormValues {
   slug: string
   description: string
   priceCents: number
+  compareAtPriceCents?: number
   currency: string
   imageUrl: string
   category: string

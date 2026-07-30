@@ -8,6 +8,7 @@ import { useCart, migrateGuestCartToServer } from "@/hooks/useCart"
 import { ORDERS_COLLECTION_ID } from "@/lib/config"
 import { stringifyJsonField } from "@/lib/json-field"
 import { RegisterForm } from "@/components/auth/RegisterForm"
+import { LoginForm } from "@/components/auth/LoginForm"
 import { ShippingForm } from "@/components/checkout/ShippingForm"
 import { OrderSummary } from "@/components/checkout/OrderSummary"
 import type { ShippingAddress } from "@/types/order"
@@ -16,11 +17,25 @@ export default function CheckoutPage(): React.JSX.Element {
   const router = useRouter()
   const { client, session } = useMudbase()
   const queryClient = useQueryClient()
-  const { items, subtotalCents, clear } = useCart()
+  const { items, subtotalCents, clear, isLoading: cartLoading } = useCart()
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [authMode, setAuthMode] = useState<"register" | "login">("register")
 
   const isCustomer = session?.user?.customRole === "customer"
+
+  // Right after registration succeeds, isCustomer flips true before the now-customer's server
+  // cart (migrated from the guest cart moments earlier) has actually loaded - items is
+  // momentarily [] during that window. Without this check, a shopper who just registered to
+  // complete checkout would see "cart is empty" and never reach the shipping form at all, even
+  // though their cart and the order they were about to place still exist.
+  if (cartLoading) {
+    return (
+      <div className="container py-16 text-center">
+        <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-muted border-t-foreground" />
+      </div>
+    )
+  }
 
   if (items.length === 0) {
     return (
@@ -56,6 +71,13 @@ export default function CheckoutPage(): React.JSX.Element {
         shippingAddressJson: stringifyJsonField(address),
         paymentStatus: "unpaid",
       })
+
+      // This bypasses useCreateDocument (which would invalidate ["collection", ORDERS_COLLECTION_ID]
+      // automatically) because the pay-link call below still needs to run even if it fails - so the
+      // order must be created and visible in Orders regardless of the payment-link outcome. Without
+      // this, the Orders list's cached query (up to 30s stale) could keep showing "no orders" right
+      // after checkout if the shopper had viewed Orders earlier in the same session.
+      await queryClient.invalidateQueries({ queryKey: ["collection", ORDERS_COLLECTION_ID] })
 
       const orderId = order._id as string
       const redirectUrl = `${window.location.origin}/orders/${orderId}`
@@ -95,11 +117,42 @@ export default function CheckoutPage(): React.JSX.Element {
 
         {!isCustomer ? (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Create an account to place this order — your cart carries over, and you&apos;ll be able to track it
-              from Orders afterward.
-            </p>
-            <RegisterForm onSuccess={() => void handleAccountCreated()} />
+            {authMode === "register" ? (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Create an account to place this order — your cart carries over, and you&apos;ll be able to track
+                  it from Orders afterward.
+                </p>
+                <RegisterForm onSuccess={() => void handleAccountCreated()} />
+                <p className="text-sm text-muted-foreground">
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode("login")}
+                    className="underline underline-offset-4"
+                  >
+                    Sign in
+                  </button>
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Sign in to continue — your cart carries over to your account.
+                </p>
+                <LoginForm onSuccess={() => void handleAccountCreated()} />
+                <p className="text-sm text-muted-foreground">
+                  New here?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setAuthMode("register")}
+                    className="underline underline-offset-4"
+                  >
+                    Create an account
+                  </button>
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <>

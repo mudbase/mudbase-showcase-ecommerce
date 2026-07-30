@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react"
 import { MudbaseClient, initMudbase, type MudbaseConfig, type SessionResponse } from "./mudbase"
+import { useSocket } from "@/hooks/useSocket"
 
 interface MudbaseContextValue {
   client: MudbaseClient
@@ -55,7 +56,23 @@ export function MudbaseProvider({
     void establish()
   }, [client, refreshSession])
 
-  return <MudbaseContext.Provider value={{ client, session, loading, refreshSession }}>{children}</MudbaseContext.Provider>
+  return (
+    <MudbaseContext.Provider value={{ client, session, loading, refreshSession }}>
+      <SocketBridge />
+      {children}
+    </MudbaseContext.Provider>
+  )
+}
+
+/**
+ * useSocket() establishes the Socket.IO connection for the current session but has to run
+ * inside the context it just created, so it's mounted here rather than exposed as a public
+ * "wire this up yourself" hook - useOrdersLive and anything else that subscribes to a room
+ * depends on this connection already existing.
+ */
+function SocketBridge(): null {
+  useSocket()
+  return null
 }
 
 export function useMudbase(): MudbaseContextValue {

@@ -15,7 +15,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>
 
-export function LoginForm(): React.JSX.Element {
+export function LoginForm({ onSuccess }: { onSuccess?: () => void } = {}): React.JSX.Element {
   const { login, loading, error } = useAuth()
   const {
     register,
@@ -24,7 +24,8 @@ export function LoginForm(): React.JSX.Element {
   } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
   const onSubmit = async (values: FormValues): Promise<void> => {
-    await login(values.email, values.password)
+    const ok = await login(values.email, values.password, { redirect: !onSuccess })
+    if (ok) onSuccess?.()
   }
 
   return (

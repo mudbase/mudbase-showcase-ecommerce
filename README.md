@@ -2,7 +2,7 @@
 
 **Live:** https://mudbase-showcase-ecommerce.vercel.app
 
-A production storefront built **entirely on [Mudbase](https://cloud.mudbase.dev)** — auth, database,
+A production storefront built **entirely on [Mudbase](https://www.mudbase.dev)** — auth, database,
 realtime, and payments — with **zero custom backend**. This is a reference implementation: every
 feature below links to the exact Mudbase capability it exercises, so you can clone it as a starting
 point for your own store.
@@ -21,6 +21,7 @@ from the browser. The only server-side code in this repo is one Route Handler
 | Customer accounts | Multi-Role signup (`POST /api/auth/local/signup/customer`) | `src/hooks/useAuth.ts` |
 | Seller/admin accounts | A second Multi-Role, `seller` (added at provisioning time, no self-signup UI) | see "Provisioning" below |
 | Product catalog | Collections, role-scoped read (`authenticated`) + role-scoped write (`seller`) | `src/components/catalog/`, `products` collection |
+| Multi-photo gallery + discounts | JSON-string field (`galleryJson`) for the array Collections can't natively store, plus a plain `compareAtPriceCents` number field | `src/components/catalog/ImageCarousel.tsx`, `src/components/seller/ProductForm.tsx` |
 | Cart, per user | Collections, ownership-conditioned CRUD (`customer` + `{userId: "$userId"}`) | `src/hooks/useCart.ts`, `carts` collection |
 | Checkout + orders | Collections, ownership-conditioned create/read/update + unrestricted seller read/update | `src/app/checkout/`, `orders` collection |
 | Payments | Payment Links (non-custodial stablecoin, USDC/POLYGON) | `src/lib/mudbase-server.ts`, `src/app/checkout/[token]/` |

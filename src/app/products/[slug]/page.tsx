@@ -1,13 +1,13 @@
 "use client"
 
 import { use } from "react"
-import Image from "next/image"
 import { useDocuments } from "@/hooks/useCollection"
 import { PRODUCTS_COLLECTION_ID } from "@/lib/config"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, discountPercent } from "@/lib/utils"
 import { parseJsonField } from "@/lib/json-field"
 import type { Product } from "@/types/product"
 import { AddToCartForm } from "@/components/catalog/AddToCartForm"
+import { ImageCarousel } from "@/components/catalog/ImageCarousel"
 import { Badge } from "@/components/ui/badge"
 
 export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }): React.JSX.Element {
@@ -36,36 +36,33 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   }
 
   const gallery = parseJsonField<string[]>(product.galleryJson, [])
+  const images = [product.imageUrl, ...gallery].filter((url): url is string => Boolean(url))
+  const percentOff = discountPercent(product.priceCents, product.compareAtPriceCents)
 
   return (
     <div className="container grid grid-cols-1 gap-10 py-10 md:grid-cols-2">
-      <div className="space-y-3">
-        <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-          {product.imageUrl ? (
-            <Image src={product.imageUrl} alt={product.name} fill sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No image</div>
-          )}
-        </div>
-        {gallery.length > 0 && (
-          <div className="grid grid-cols-4 gap-2">
-            {gallery.map((url) => (
-              <div key={url} className="relative aspect-square overflow-hidden rounded-md bg-muted">
-                <Image src={url} alt="" fill sizes="120px" className="object-cover" />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <ImageCarousel images={images} alt={product.name} />
 
       <div className="space-y-6">
         <div className="space-y-2">
-          {product.category && <Badge variant="secondary">{product.category}</Badge>}
+          <div className="flex items-center gap-2">
+            {product.category && <Badge variant="secondary">{product.category}</Badge>}
+            {percentOff !== null && <Badge>{percentOff}% off</Badge>}
+          </div>
           <h1 className="font-display text-3xl font-semibold tracking-tight">{product.name}</h1>
-          <p className="text-2xl font-semibold tabular-nums">{formatMoney(product.priceCents, product.currency)}</p>
+          <div className="flex items-baseline gap-2">
+            <p className="text-2xl font-semibold tabular-nums">{formatMoney(product.priceCents, product.currency)}</p>
+            {percentOff !== null && (
+              <p className="text-base tabular-nums text-muted-foreground line-through">
+                {formatMoney(product.compareAtPriceCents as number, product.currency)}
+              </p>
+            )}
+          </div>
         </div>
 
-        {product.description && <p className="leading-relaxed text-muted-foreground">{product.description}</p>}
+        {product.description && (
+          <p className="whitespace-pre-line leading-relaxed text-muted-foreground">{product.description}</p>
+        )}
 
         <AddToCartForm product={product} />
 

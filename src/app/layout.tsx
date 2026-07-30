@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }):
               <main className="flex-1">{children}</main>
               <footer className="border-t border-border py-8 text-center text-sm text-muted-foreground">
                 Built entirely on{" "}
-                <a href="https://cloud.mudbase.dev" className="underline underline-offset-4" target="_blank" rel="noreferrer">
+                <a href="https://www.mudbase.dev" className="underline underline-offset-4" target="_blank" rel="noreferrer">
                   Mudbase
                 </a>{" "}
                 — no custom backend.

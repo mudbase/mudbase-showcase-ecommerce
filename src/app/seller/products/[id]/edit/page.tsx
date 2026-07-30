@@ -3,6 +3,7 @@
 import { use } from "react"
 import { useDocument, useUpdateDocument } from "@/hooks/useCollection"
 import { PRODUCTS_COLLECTION_ID } from "@/lib/config"
+import { parseJsonField, stringifyJsonField } from "@/lib/json-field"
 import { SellerGuard } from "@/components/seller/SellerGuard"
 import { ProductForm, type ProductFormValues } from "@/components/seller/ProductForm"
 import type { Product } from "@/types/product"
@@ -13,7 +14,15 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const updateProduct = useUpdateDocument<Product>(PRODUCTS_COLLECTION_ID)
 
   const handleSave = async (values: ProductFormValues): Promise<void> => {
-    await updateProduct.mutateAsync({ documentId: id, data: { ...values, imageUrl: values.imageUrl || undefined } })
+    const { galleryUrls, ...rest } = values
+    await updateProduct.mutateAsync({
+      documentId: id,
+      data: {
+        ...rest,
+        imageUrl: values.imageUrl || undefined,
+        galleryJson: stringifyJsonField(galleryUrls.map((g) => g.url)),
+      },
+    })
   }
 
   return (
@@ -28,8 +37,10 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               name: product.name,
               description: product.description ?? "",
               priceCents: product.priceCents,
+              compareAtPriceCents: product.compareAtPriceCents,
               currency: product.currency,
               imageUrl: product.imageUrl ?? "",
+              galleryUrls: parseJsonField<string[]>(product.galleryJson, []).map((url) => ({ url })),
               category: product.category ?? "",
               stock: product.stock,
               isActive: product.isActive,

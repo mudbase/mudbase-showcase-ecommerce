@@ -20,3 +20,8 @@ export function slugify(value: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/(^-|-$)/g, "")
 }
+
+export function discountPercent(priceCents: number, compareAtPriceCents?: number): number | null {
+  if (!compareAtPriceCents || compareAtPriceCents <= priceCents) return null
+  return Math.round((1 - priceCents / compareAtPriceCents) * 100)
+}

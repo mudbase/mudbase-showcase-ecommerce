@@ -3,6 +3,7 @@
 import { useMudbase } from "@/lib/mudbase-provider"
 import { PRODUCTS_COLLECTION_ID } from "@/lib/config"
 import { slugify } from "@/lib/utils"
+import { stringifyJsonField } from "@/lib/json-field"
 import { SellerGuard } from "@/components/seller/SellerGuard"
 import { ProductForm, type ProductFormValues } from "@/components/seller/ProductForm"
 
@@ -10,10 +11,12 @@ export default function NewProductPage(): React.JSX.Element {
   const { client, session } = useMudbase()
 
   const handleSave = async (values: ProductFormValues): Promise<void> => {
+    const { galleryUrls, ...rest } = values
     await client.createDocument(PRODUCTS_COLLECTION_ID, {
-      ...values,
+      ...rest,
       slug: `${slugify(values.name)}-${Math.random().toString(36).slice(2, 8)}`,
       imageUrl: values.imageUrl || undefined,
+      galleryJson: stringifyJsonField(galleryUrls.map((g) => g.url)),
       sellerId: session?.user?.id,
     })
   }

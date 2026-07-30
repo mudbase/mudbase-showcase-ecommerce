@@ -171,10 +171,14 @@ export class MudbaseClient {
   // ─── Auth ──────────────────────────────────────────────────────────────────
 
   async register(params: RegisterParams): Promise<AuthResponse> {
+    // The signup validator explicitly rejects `role`/`customRole` in the request body
+    // (`.unknown(false)`, a deliberate anti-role-injection control) - the role is taken only
+    // from the URL path segment below, so it must not be spread into the body too.
+    const { role, ...body } = params
     const res = await this.request<AuthResponse>(
       "POST",
-      `/api/auth/local/signup/${params.role}`,
-      { ...params, projectId: this.projectId },
+      `/api/auth/local/signup/${role}`,
+      { ...body, projectId: this.projectId },
       { auth: false },
     )
     if (res.token) this.setToken(res.token)

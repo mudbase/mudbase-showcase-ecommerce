@@ -7,10 +7,17 @@ export type SocketStatus = "disconnected" | "connecting" | "connected" | "error"
 export class MudbaseSocket {
   private socket: Socket | null = null
   private statusListeners: Set<(s: SocketStatus) => void> = new Set()
+  private connectedToken: string | null = null
 
   connect(token: string): void {
-    if (this.socket?.connected) return
+    // Guest browsing connects anonymously, then the same tab often logs in (checkout, seller
+    // login) - without checking the token, this early-return would leave the socket permanently
+    // authenticated as the stale anonymous identity, since "already connected" looked sufficient
+    // on its own. Reconnect whenever the token actually changes.
+    if (this.socket?.connected && this.connectedToken === token) return
+    if (this.socket) this.socket.disconnect()
 
+    this.connectedToken = token
     this.socket = io(MUDBASE_URL, {
       path: "/socket.io/",
       transports: ["websocket", "polling"],
@@ -29,6 +36,7 @@ export class MudbaseSocket {
   disconnect(): void {
     this.socket?.disconnect()
     this.socket = null
+    this.connectedToken = null
   }
 
   get connected(): boolean {

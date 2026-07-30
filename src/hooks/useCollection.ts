@@ -9,13 +9,22 @@ export function useDocuments<T extends Document = Document>(
   query?: QueryParams,
   options?: Omit<UseQueryOptions<ListResponse<T>>, "queryKey" | "queryFn">,
 ) {
-  const { client, session } = useMudbase()
-  return useQuery<ListResponse<T>>({
+  const { client, session, loading: sessionLoading } = useMudbase()
+  const result = useQuery<ListResponse<T>>({
     queryKey: ["collection", collectionId, query],
     queryFn: () => client.getDocuments<T>(collectionId, query),
     enabled: !!session,
     ...options,
   })
+  // TanStack Query v5's isLoading is isPending && isFetching - while this query sits disabled
+  // (enabled: !!session, before the guest/anonymous session finishes establishing on first
+  // page load), isFetching is false, so isLoading reports false too, even though no data has
+  // ever been fetched. A page checking `isLoading` first, then falling back to an "isError ||
+  // no data" not-found state, would render that not-found state on every fresh page load during
+  // the anonymous-session handshake - e.g. a product page briefly claiming the product "isn't
+  // available anymore" before the session (and the real query) ever ran. Folding in the
+  // provider's own session-establishment flag keeps isLoading true for that whole window.
+  return { ...result, isLoading: result.isLoading || (sessionLoading && !result.data) }
 }
 
 export function useDocument<T extends Document = Document>(

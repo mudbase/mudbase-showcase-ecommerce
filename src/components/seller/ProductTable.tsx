@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Pencil, Trash2 } from "lucide-react"
 import { useDocuments, useDeleteDocument } from "@/hooks/useCollection"
 import { PRODUCTS_COLLECTION_ID } from "@/lib/config"
-import { formatMoney } from "@/lib/utils"
+import { formatMoney, discountPercent } from "@/lib/utils"
 import type { Product } from "@/types/product"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -42,10 +42,22 @@ export function ProductTable(): React.JSX.Element {
           </tr>
         </thead>
         <tbody>
-          {products.map((product) => (
+          {products.map((product) => {
+            const percentOff = discountPercent(product.priceCents, product.compareAtPriceCents)
+            return (
             <tr key={product._id} className="border-b border-border last:border-0">
               <td className="max-w-xs truncate px-4 py-3">{product.name}</td>
-              <td className="px-4 py-3 text-right tabular-nums">{formatMoney(product.priceCents, product.currency)}</td>
+              <td className="px-4 py-3 text-right tabular-nums">
+                <div className="flex items-baseline justify-end gap-1.5">
+                  {percentOff !== null && (
+                    <span className="text-xs text-muted-foreground line-through">
+                      {formatMoney(product.compareAtPriceCents as number, product.currency)}
+                    </span>
+                  )}
+                  <span>{formatMoney(product.priceCents, product.currency)}</span>
+                  {percentOff !== null && <Badge variant="secondary">-{percentOff}%</Badge>}
+                </div>
+              </td>
               <td className="px-4 py-3 text-right tabular-nums">{product.stock}</td>
               <td className="px-4 py-3">
                 <Badge variant={product.isActive ? "success" : "secondary"}>
@@ -74,7 +86,8 @@ export function ProductTable(): React.JSX.Element {
                 </div>
               </td>
             </tr>
-          ))}
+            )
+          })}
         </tbody>
       </table>
     </div>
