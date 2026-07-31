@@ -214,16 +214,45 @@ re-fetching the authoritative cart immediately before deciding create-vs-update
 rather than trusting a stale query-cache value, since Mudbase's Data API has
 no PATCH-or-create endpoint.
 
-**Payment Links require the org to be KYC-approved.** If the demo org's
-`kycStatus` isn't `approved`, checkout surfaces the real `403 KYC_REQUIRED`
-from the proxy as "this store's payments are still pending identity
-verification" — the honest behavior, not a bug to fix here.
+**Payment Links require the org to be KYC-approved.** Live-verified against
+production: checkout creates the order, then the payment-link proxy call
+fails — observed as a `502` with `{ reason: "merchant_auth_failed" }` (not
+always the `403 KYC_REQUIRED` shape this section originally described; the
+proxy can surface either depending on which step of its own org-credential
+flow fails). `checkout/index.tsx` rolls the order back to `orderStatus:
+"pending"` for **any** failed reason — kyc_required, merchant_auth_failed, or
+unknown — not just kyc_required, since leaving it at `awaiting_payment` with
+no `paymentLinkToken` would strand the order (no token to navigate to, and
+"payment already in progress" from the order's own perspective blocks
+re-attempting checkout). Confirmed live: order lands on `pending`, screen
+shows the failure message, no crash — the honest behavior, not a bug to fix
+here.
 
 **Access tokens are short-lived (~30 min).** `client.ts` retries exactly once
 on a `401` by calling `POST /api/auth/refresh` and re-issuing the original
 request — refresh tokens rotate on every use per the platform (reuse of an
 already-used refresh token revokes the whole session), so concurrent 401s
 share a single in-flight refresh promise rather than each firing their own.
+Live-verified against production, including the failure edge: when a
+refresh token has already been consumed (e.g. by a concurrent session using
+the same account), the platform returns `401 Invalid or expired refresh
+token` on the refresh call itself. That exception propagates out of
+`withAuthRetry` to callers like `getSession()`, whose own catch-all clears
+the stored tokens and returns `null` — `AuthGuard` in `app/_layout.tsx` then
+treats the user as signed out and redirects to `/login`, not a crash.
+
+**`expo-secure-store` has no real web fallback, despite its own web module's
+name.** `ExpoSecureStore.web.ts` in the installed SDK version is a bare
+`export default {}` — every method is `undefined` there, not a localStorage
+shim. Calling `SecureStore.setItemAsync`/`getItemAsync` under `expo start
+--web` threw a client-side `TypeError` before touching storage, silently
+breaking login/registration (`persistTokens()` failed on every sign-in) any
+time someone ran the local web smoke-test this README recommends below.
+Fixed in `src/api/secureStorage.ts`: on `Platform.OS === "web"`, storage now
+goes straight to `window.localStorage` instead of through the native-module
+shim — making the file's own preexisting comment ("on web it falls back to
+localStorage") actually true. Still explicitly not a target platform for
+production (no OS keychain in a browser), same as before.
 
 ## Local development
 

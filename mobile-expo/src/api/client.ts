@@ -15,11 +15,22 @@ import { authResultSchema, mudbaseUserSchema, type AuthResult, type MudbaseUser 
  * Thin, typed wrapper around the real generated `mudbase-sdk` — NOT a
  * unified client the SDK doesn't have. Every call below is a real generated
  * method (`AuthenticationApi`/`MultiRoleFeatureApi`/`DataApi` instances, one
- * per resource, exactly as documented in the SDK's docs/*.md — see the
- * "SDK dependency" note in README.md). This file only adds: token storage
- * (SecureStore, never AsyncStorage), a single-retry-on-401 refresh, and
- * zod-validated narrowing of the generated response types where they
- * under-describe the real payload (documented per field below).
+ * per resource — see the "SDK dependency" note in README.md). This file only
+ * adds: token storage (SecureStore, never AsyncStorage), a single-retry-on-401
+ * refresh, and zod-validated narrowing of the generated response types where
+ * they under-describe the real payload (documented per field below).
+ *
+ * Calling convention: every generated `*Api` class method below takes a
+ * single `requestParameters` object (e.g. `loginLocalUser({ loginLocalUserRequest: {...} })`,
+ * `getData({ projectId, collectionId, documentId })`), NOT the positional
+ * arguments shown in the SDK's docs/*.md examples — those examples are
+ * generated from an older calling convention and no longer match the actual
+ * `dist/api.js` class methods in the currently vendored SDK build. Calling
+ * positionally throws a client-side `RequiredError` before any request
+ * reaches the network (e.g. "Required parameter role was null or undefined"),
+ * which is silent and easy to miss if you only read the docs and never
+ * exercised the call against the live project — verified the hard way while
+ * QAing this app end-to-end.
  */
 
 export class MudbaseApiError extends Error {
@@ -53,20 +64,19 @@ interface ListDocumentsOptions {
 }
 
 /**
- * `registerWithRole`'s generated response type is `void` — the underlying
- * OpenAPI spec has no documented response schema for this operation, even
- * though the live endpoint returns the same shape as `loginLocalUser`
- * (message/token/refreshToken/expiresIn/user, or requireVerification when the
- * project has email verification on). This local interface documents the one
- * field the generated `RegisterWithRoleRequest` model is also missing:
- * `agreedToTerms`, which the registration validator rejects requests without
- * (same real constraint the web reference app's mudbase.ts documents).
- * Extending (not replacing) the SDK's own request type keeps this honest
- * about which parts are SDK-verified vs. locally documented.
+ * The currently vendored SDK's generated `RegisterWithRole201Response` model
+ * (dist/api.d.ts) is a real, filled-in shape — not `void` — and its request
+ * model already includes `agreedToTerms` as a required field. This alias no
+ * longer adds anything over `RegisterWithRoleRequest` itself; kept as a named
+ * type (rather than inlined) only so a future SDK regeneration that narrows
+ * or drops a field here fails at this one call site instead of silently
+ * accepting a stale shape. The response is still parsed through
+ * `authResultSchema` below rather than trusted as `res.data` directly, since
+ * `mudbaseUserSchema`'s `customRole`/`isAnonymous` fields are project-session
+ * fields this project-scoped register/login flow relies on beyond what any
+ * single generated model documents.
  */
-interface RegisterWithRoleRequestBody extends RegisterWithRoleRequest {
-  agreedToTerms: boolean;
-}
+type RegisterWithRoleRequestBody = RegisterWithRoleRequest;
 
 function toApiError(err: unknown): MudbaseApiError {
   if (isAxiosError(err)) {
@@ -139,7 +149,16 @@ class MudbaseClient {
     }
     if (!this.refreshing) {
       this.refreshing = (async (): Promise<void> => {
-        const res = await this.authApi.refreshToken({ refreshToken: this.refreshTokenValue as string });
+        // The generated `AuthenticationApi` class (unlike the positional-args
+        // shape shown in docs/AuthenticationApi.md) takes a single
+        // requestParameters object wrapping the actual request body — see
+        // `AuthenticationApiRefreshTokenRequest` in dist/api.d.ts. Every SDK
+        // call in this file follows that same object-parameter convention;
+        // calling positionally throws a client-side RequiredError before any
+        // request reaches the network (verified against the live project).
+        const res = await this.authApi.refreshToken({
+          refreshTokenRequest: { refreshToken: this.refreshTokenValue as string },
+        });
         const { token, refreshToken: nextRefreshToken } = res.data;
         if (!token || !nextRefreshToken) {
           throw new MudbaseApiError("Refresh response was missing new tokens.", 500);
@@ -179,7 +198,7 @@ class MudbaseClient {
       // Self-signup is always the "customer" role — seller accounts are
       // provisioned once, out of band, with no self-service UI (see README
       // "Known limitations", mirroring web/README.md's own Provisioning note).
-      const res = await this.multiRoleApi.registerWithRole("customer", body);
+      const res = await this.multiRoleApi.registerWithRole({ role: "customer", registerWithRoleRequest: body });
       const parsed: AuthResult = authResultSchema.parse(res.data);
       if (parsed.token && parsed.refreshToken && parsed.user) {
         await this.persistTokens(parsed.token, parsed.refreshToken);
@@ -196,7 +215,9 @@ class MudbaseClient {
 
   async login(email: string, password: string): Promise<MudbaseUser> {
     try {
-      const res = await this.authApi.loginLocalUser({ email, password, projectId: MUDBASE_PROJECT_ID });
+      const res = await this.authApi.loginLocalUser({
+        loginLocalUserRequest: { email, password, projectId: MUDBASE_PROJECT_ID },
+      });
       const { token, refreshToken: refreshTokenValue } = res.data;
       if (!token || !refreshTokenValue) {
         throw new MudbaseApiError("Login response was missing tokens.", 500);
@@ -229,7 +250,7 @@ class MudbaseClient {
   async getSession(): Promise<MudbaseUser | null> {
     if (!this.token) return null;
     try {
-      const body = await this.withAuthRetry(() => this.authApi.getLocalSession(MUDBASE_PROJECT_ID));
+      const body = await this.withAuthRetry(() => this.authApi.getLocalSession({ projectId: MUDBASE_PROJECT_ID }));
       return mudbaseUserSchema.parse(body.user);
     } catch {
       await this.clearTokens();
@@ -247,7 +268,14 @@ class MudbaseClient {
     const filterStr =
       options.filter && Object.keys(options.filter).length > 0 ? JSON.stringify(options.filter) : undefined;
     const body = await this.withAuthRetry(() =>
-      this.dataApi.listData(MUDBASE_PROJECT_ID, collectionId, options.page, options.limit, options.sort, filterStr),
+      this.dataApi.listData({
+        projectId: MUDBASE_PROJECT_ID,
+        collectionId,
+        page: options.page,
+        limit: options.limit,
+        sort: options.sort,
+        filter: filterStr,
+      }),
     );
     const list = z.array(schema).parse(body.data ?? []);
     const page = body.pagination?.page ?? 1;
@@ -265,12 +293,16 @@ class MudbaseClient {
   }
 
   async getDocument<T>(schema: z.ZodType<T>, collectionId: string, documentId: string): Promise<T> {
-    const body = await this.withAuthRetry(() => this.dataApi.getData(MUDBASE_PROJECT_ID, collectionId, documentId));
+    const body = await this.withAuthRetry(() =>
+      this.dataApi.getData({ projectId: MUDBASE_PROJECT_ID, collectionId, documentId }),
+    );
     return schema.parse(body.data);
   }
 
   async createDocument<T>(schema: z.ZodType<T>, collectionId: string, data: Record<string, unknown>): Promise<T> {
-    const body = await this.withAuthRetry(() => this.dataApi.createData(MUDBASE_PROJECT_ID, collectionId, data));
+    const body = await this.withAuthRetry(() =>
+      this.dataApi.createData({ projectId: MUDBASE_PROJECT_ID, collectionId, body: data }),
+    );
     return schema.parse(body.data);
   }
 
@@ -281,13 +313,15 @@ class MudbaseClient {
     data: Record<string, unknown>,
   ): Promise<T> {
     const body = await this.withAuthRetry(() =>
-      this.dataApi.updateData(MUDBASE_PROJECT_ID, collectionId, documentId, data),
+      this.dataApi.updateData({ projectId: MUDBASE_PROJECT_ID, collectionId, documentId, body: data }),
     );
     return schema.parse(body.data);
   }
 
   async deleteDocument(collectionId: string, documentId: string): Promise<void> {
-    await this.withAuthRetry(() => this.dataApi.deleteData(MUDBASE_PROJECT_ID, collectionId, documentId));
+    await this.withAuthRetry(() =>
+      this.dataApi.deleteData({ projectId: MUDBASE_PROJECT_ID, collectionId, documentId }),
+    );
   }
 }
 

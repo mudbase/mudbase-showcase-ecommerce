@@ -58,9 +58,15 @@ export default function CheckoutScreen(): React.JSX.Element {
       });
 
       if (!result.ok) {
-        if (result.reason === "kyc_required") {
-          await mudbaseClient.updateDocument(orderSchema, ORDERS_COLLECTION_ID, order._id, { orderStatus: "pending" });
-        }
+        // No payment link could be created for ANY failure reason (kyc_required,
+        // merchant auth failure, or an unknown/5xx from the proxy — e.g. this demo
+        // org's undocumented-to-the-client "no payment merchant configured" 502) —
+        // roll the order back to "pending" in every case, not just kyc_required.
+        // Leaving it at "awaiting_payment" with no paymentLinkToken is a stuck,
+        // unrecoverable order: it can never reach a payment screen (no token to
+        // navigate to) and never re-attempts checkout (payment already "in
+        // progress" from the order's own perspective).
+        await mudbaseClient.updateDocument(orderSchema, ORDERS_COLLECTION_ID, order._id, { orderStatus: "pending" });
         setError(result.message);
         return;
       }
