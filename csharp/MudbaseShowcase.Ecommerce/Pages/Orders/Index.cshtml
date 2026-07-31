@@ -1,0 +1,38 @@
+@page
+@model MudbaseShowcase.Ecommerce.Pages.Orders.IndexModel
+@using MudbaseShowcase.Ecommerce.Services
+@{
+    ViewData["Title"] = "Your orders";
+}
+
+<h1 class="h4 fw-semibold mb-4">Your orders</h1>
+
+@if (Model.LoadError is not null)
+{
+    <p class="text-danger">@Model.LoadError</p>
+}
+else if (Model.Orders.Count == 0)
+{
+    <div class="border border-dashed rounded p-5 text-center text-muted">No orders yet.</div>
+}
+else
+{
+    <ul class="list-group list-group-flush border rounded">
+        @foreach (OrderDocument order in Model.Orders)
+        {
+            <li class="list-group-item">
+                <a class="d-flex justify-content-between align-items-center text-decoration-none text-reset"
+                   asp-page="/Orders/Detail" asp-route-id="@order.Id">
+                    <div>
+                        <p class="fw-medium mb-0">Order #@MoneyFormatter.ShortId(order.Id)</p>
+                        <p class="text-muted small mb-0">@MoneyFormatter.FormatDate(order.CreatedAt)</p>
+                    </div>
+                    <div class="d-flex align-items-center gap-3">
+                        <span>@MoneyFormatter.Format(order.SubtotalCents, order.Currency)</span>
+                        <span class="badge badge-status-@order.OrderStatus">@OrderStatus.Label(order.OrderStatus)</span>
+                    </div>
+                </a>
+            </li>
+        }
+    </ul>
+}

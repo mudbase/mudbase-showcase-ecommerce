@@ -1,0 +1,71 @@
+<div class="section">
+  <div class="section-header">
+    <div>
+      <h1 class="page-title" style="margin-bottom:0;">Orders</h1>
+      <p class="page-subtitle" style="margin-bottom:0;">Fulfillment queue - every order in this Mudbase project.</p>
+    </div>
+  </div>
+
+  <% if @orders.empty? %>
+    <div class="empty-state"><p>No orders yet - they'll appear here the instant one comes in.</p></div>
+  <% else %>
+    <ul class="order-list">
+      <% @orders.each do |order| %>
+        <% next_status = Mudbase::OrdersRepo.next_status_for(order[:orderStatus]) %>
+        <li>
+          <div class="order-row">
+            <div>
+              <a href="/orders/<%= order[:_id] %>" style="font-weight:600; text-decoration:none;">Order #<%= short_order_id(order[:_id]) %></a>
+              <p class="order-meta"><%= order[:shippingName] || "Guest" %> · <%= format_date(order[:createdAt]) %></p>
+            </div>
+            <div style="display:flex; align-items:center; gap:1rem;">
+              <span><%= format_money(order[:subtotalCents], order[:currency]) %></span>
+              <span class="badge-pill badge-<%= order_status_variant(order[:orderStatus]) %>"><%= order_status_label(order[:orderStatus]) %></span>
+              <% if next_status %>
+                <form action="/seller/orders/<%= order[:_id] %>/status" method="post" class="inline-form">
+                  <button type="submit" class="btn btn-outline btn-sm">Mark <%= next_status %></button>
+                </form>
+              <% end %>
+            </div>
+          </div>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+</div>
+
+<div class="section">
+  <div class="section-header">
+    <h2 style="font-size:1.4rem; margin:0;">Products</h2>
+    <a href="/seller/products/new" class="btn">Add product</a>
+  </div>
+
+  <% if @products.empty? %>
+    <div class="empty-state">
+      <p>No products listed yet.</p>
+      <p><a href="/seller/products/new" class="btn">Add your first product</a></p>
+    </div>
+  <% else %>
+    <table class="data-table">
+      <thead>
+        <tr><th>Name</th><th class="num">Price</th><th class="num">Stock</th><th>Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        <% @products.each do |product| %>
+          <% pct = discount_percent(product[:priceCents], product[:compareAtPriceCents]) %>
+          <tr>
+            <td><%= h(product[:name]) %></td>
+            <td class="num">
+              <% if pct %><span class="price-compare"><%= format_money(product[:compareAtPriceCents], product[:currency]) %></span> <% end %>
+              <%= format_money(product[:priceCents], product[:currency]) %>
+              <% if pct %><span class="badge-pill">-<%= pct %>%</span><% end %>
+            </td>
+            <td class="num"><%= product[:stock] %></td>
+            <td><span class="badge-pill badge-<%= product[:isActive] ? 'success' : 'secondary' %>"><%= product[:isActive] ? "Active" : "Hidden" %></span></td>
+            <td><a href="/seller/products/<%= product[:_id] %>/edit">Edit</a></td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

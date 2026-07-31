@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Your cart — Commonwealth Goods</title>
+  <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
+</head>
+<body>
+<div th:replace="~{fragments/layout :: header}"></div>
+
+<main class="container">
+  <div class="two-col">
+    <div>
+      <h1 class="page-title">Your cart</h1>
+
+      <div th:if="${items.isEmpty()}" class="empty-state">
+        <p>Your cart is empty.</p>
+      </div>
+
+      <ul th:unless="${items.isEmpty()}" class="line-list">
+        <li th:each="item : ${items}" class="line-item">
+          <div class="line-thumb">
+            <img th:if="${item.imageUrl != null}" th:src="${item.imageUrl}" th:alt="${item.name}" />
+          </div>
+          <div style="flex:1;min-width:0">
+            <p style="margin:0;font-weight:600" th:text="${item.name}">Item</p>
+            <p class="muted tabular" style="margin:2px 0 0" th:text="${item.formattedUnitPrice}">$0.00</p>
+          </div>
+          <form method="post" th:action="@{/cart/update}" class="qty-control">
+            <input type="hidden" name="productId" th:value="${item.productId}" />
+            <button type="submit" name="quantity" th:value="${item.quantity - 1}">−</button>
+            <span th:text="${item.quantity}">1</span>
+            <button type="submit" name="quantity" th:value="${item.quantity + 1}">+</button>
+          </form>
+          <p style="width:80px;text-align:right;font-weight:600" class="tabular" th:text="${item.formattedLineTotal}">$0.00</p>
+          <form method="post" th:action="@{/cart/remove}">
+            <input type="hidden" name="productId" th:value="${item.productId}" />
+            <button type="submit" class="btn-icon" th:attr="aria-label='Remove ' + ${item.name}">✕</button>
+          </form>
+        </li>
+      </ul>
+    </div>
+
+    <div>
+      <div class="card card-pad">
+        <h2 style="font-size:1.1rem">Order summary</h2>
+        <div style="display:flex;justify-content:space-between;font-size:0.9rem;margin:10px 0">
+          <span class="muted">Subtotal</span>
+          <span class="tabular" th:text="${formattedSubtotal}">$0.00</span>
+        </div>
+        <hr class="sep" />
+        <div style="display:flex;justify-content:space-between;font-weight:600;margin-bottom:16px">
+          <span>Total</span>
+          <span class="tabular" th:text="${formattedSubtotal}">$0.00</span>
+        </div>
+        <a th:href="@{/checkout}" class="btn btn-accent btn-block" th:classappend="${items.isEmpty() ? 'btn-disabled' : ''}">Checkout</a>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

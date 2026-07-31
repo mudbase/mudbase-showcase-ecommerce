@@ -1,0 +1,92 @@
+@page "{slug}"
+@model MudbaseShowcase.Ecommerce.Pages.Products.DetailModel
+@using MudbaseShowcase.Ecommerce.Services
+@{
+    ViewData["Title"] = Model.Product?.Name ?? "Product";
+}
+
+@if (Model.IsNotFound || Model.Product is null)
+{
+    <div class="text-center py-5">
+        <p class="text-muted">This product isn't available anymore.</p>
+    </div>
+}
+else
+{
+    ProductDocument product = Model.Product;
+    <div class="row g-5">
+        <div class="col-md-6">
+            @if (Model.GalleryImages.Count > 0)
+            {
+                <div id="productCarousel" class="carousel slide" data-bs-ride="false">
+                    <div class="carousel-inner rounded">
+                        @for (int i = 0; i < Model.GalleryImages.Count; i++)
+                        {
+                            <div class="carousel-item @(i == 0 ? "active" : "")">
+                                <img src="@Model.GalleryImages[i]" class="d-block w-100 product-card" alt="@product.Name" />
+                            </div>
+                        }
+                    </div>
+                    @if (Model.GalleryImages.Count > 1)
+                    {
+                        <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                            <span class="carousel-control-prev-icon"></span>
+                        </button>
+                        <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                            <span class="carousel-control-next-icon"></span>
+                        </button>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="no-image product-card rounded">No image</div>
+            }
+        </div>
+        <div class="col-md-6">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                @if (!string.IsNullOrWhiteSpace(product.Category))
+                {
+                    <span class="badge bg-secondary">@product.Category</span>
+                }
+                @if (Model.DiscountPercent is not null)
+                {
+                    <span class="badge bg-brand text-bg-dark">@Model.DiscountPercent% off</span>
+                }
+            </div>
+            <h1 class="h3 fw-semibold">@product.Name</h1>
+            <div class="d-flex align-items-baseline gap-2 mb-3">
+                <span class="fs-4 fw-semibold">@MoneyFormatter.Format(product.PriceCents, product.Currency)</span>
+                @if (Model.DiscountPercent is not null)
+                {
+                    <span class="text-muted text-decoration-line-through">@MoneyFormatter.Format(product.CompareAtPriceCents!.Value, product.Currency)</span>
+                }
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(product.Description))
+            {
+                <p class="text-muted" style="white-space: pre-line;">@product.Description</p>
+            }
+
+            @if (Model.AddedMessage is not null)
+            {
+                <p class="text-success">@Model.AddedMessage</p>
+            }
+            @if (Model.AddError is not null)
+            {
+                <p class="text-danger" role="alert">@Model.AddError</p>
+            }
+
+            <form method="post" asp-page-handler="AddToCart" asp-route-slug="@product.Slug" class="d-flex gap-2 mb-3">
+                <input asp-for="Quantity" type="number" min="1" max="@Math.Max(product.Stock, 1)" class="form-control" style="max-width: 90px;" />
+                <button type="submit" class="btn btn-brand flex-fill" @(product.Stock <= 0 ? "disabled" : "")>
+                    @(product.Stock <= 0 ? "Out of stock" : "Add to cart")
+                </button>
+            </form>
+
+            <p class="text-muted small">
+                @(product.Stock > 0 ? $"{product.Stock} in stock" : "Currently out of stock")
+            </p>
+        </div>
+    </div>
+}

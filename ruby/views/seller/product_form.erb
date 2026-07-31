@@ -1,0 +1,58 @@
+<h1 class="page-title"><%= @form_title %></h1>
+
+<form action="<%= @form_action %>" method="post" class="stack" novalidate>
+  <div class="field">
+    <label for="name">Name</label>
+    <input type="text" id="name" name="name" value="<%= h(@product[:name]) %>" required>
+  </div>
+
+  <div class="field">
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="5"><%= h(@product[:description]) %></textarea>
+  </div>
+
+  <div class="field-row">
+    <div class="field">
+      <label for="price_cents">Price (cents)</label>
+      <input type="number" id="price_cents" name="price_cents" min="0" value="<%= @product[:price_cents] %>" required>
+    </div>
+    <div class="field">
+      <label for="stock">Stock</label>
+      <input type="number" id="stock" name="stock" min="0" value="<%= @product[:stock] %>" required>
+    </div>
+  </div>
+
+  <div class="field">
+    <label for="compare_at_price_cents">Compare-at price (cents)</label>
+    <input type="number" id="compare_at_price_cents" name="compare_at_price_cents" min="0" placeholder="Leave blank for no discount" value="<%= @product[:compare_at_price_cents] %>">
+    <p class="field-hint">Set this higher than the price to show a strikethrough &amp; discount badge in the catalog.</p>
+  </div>
+
+  <div class="field">
+    <label for="category">Category</label>
+    <input type="text" id="category" name="category" value="<%= h(@product[:category]) %>">
+  </div>
+
+  <div class="field">
+    <label for="image_url">Main image URL</label>
+    <input type="text" id="image_url" name="image_url" placeholder="https://…" value="<%= h(@product[:image_url]) %>">
+    <p class="field-hint">
+      Mudbase file uploads require an owner/admin/developer system role, which project
+      end-users (sellers included) don't have - see README "Known limitations". Paste a
+      hosted image URL for now.
+    </p>
+  </div>
+
+  <div class="field">
+    <label for="gallery_urls">Additional photo URLs</label>
+    <textarea id="gallery_urls" name="gallery_urls" rows="4" placeholder="One URL per line, up to 8"><%= h(@product[:gallery_urls].join("\n")) %></textarea>
+    <p class="field-hint">Shown as a rotating gallery on the product page.</p>
+  </div>
+
+  <label class="checkbox-row">
+    <input type="checkbox" name="is_active" value="1" <%= "checked" if @product[:is_active] %>>
+    <span>Visible in the catalog</span>
+  </label>
+
+  <button type="submit" class="btn">Save product</button>
+</form>

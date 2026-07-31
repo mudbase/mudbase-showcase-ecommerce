@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name if product else "Product" }}{% endblock %}
+{% block content %}
+  {% if not product %}
+    <div class="empty-state">This product isn&apos;t available anymore.</div>
+  {% else %}
+    <div class="product-detail">
+      <div>
+        {% set images = product.images %}
+        {% if images %}
+          <div class="carousel" data-carousel>
+            {% for src in images %}
+              <img src="{{ src }}" alt="{{ product.name }}{{ '' if loop.first else ' — photo ' ~ loop.index }}" class="{{ 'active' if loop.first else '' }}" />
+            {% endfor %}
+            {% if images | length > 1 %}
+              <button type="button" class="carousel-nav carousel-prev" data-carousel-prev aria-label="Previous photo">&#8592;</button>
+              <button type="button" class="carousel-nav carousel-next" data-carousel-next aria-label="Next photo">&#8594;</button>
+            {% endif %}
+          </div>
+          {% if images | length > 1 %}
+            <div class="carousel-dots" role="tablist" aria-label="Product photos">
+              {% for src in images %}
+                <button type="button" class="carousel-dot {{ 'active' if loop.first else '' }}" data-carousel-dot="{{ loop.index0 }}" aria-label="Show photo {{ loop.index }}"></button>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="carousel"><div class="product-image-empty" style="height:100%;">No image</div></div>
+        {% endif %}
+      </div>
+
+      <div>
+        <p class="product-eyebrow">
+          {% if product.category %}<span class="badge badge-secondary">{{ product.category }}</span>{% endif %}
+          {% if product.discount_percent %}<span class="badge">{{ product.discount_percent }}% off</span>{% endif %}
+        </p>
+        <h1>{{ product.name }}</h1>
+        <div class="price-row" style="padding: 0 0 1rem;">
+          <span class="price" style="font-size: 1.4rem;">{{ product.formatted_price }}</span>
+          {% if product.formatted_compare_at_price %}
+            <span class="price-compare">{{ product.formatted_compare_at_price }}</span>
+          {% endif %}
+        </div>
+        {% if product.description %}
+          <p class="muted" style="white-space: pre-line;">{{ product.description }}</p>
+        {% endif %}
+
+        {% if not product.in_stock %}
+          <button class="btn btn-outline btn-block" disabled>Out of stock</button>
+        {% elif current_user and current_user.is_customer %}
+          <form method="post" action="/cart/add" class="cart-add-form">
+            <input type="hidden" name="product_id" value="{{ product.id }}" />
+            <div class="form-row" style="grid-template-columns: auto 1fr; align-items: center; gap: 0.75rem;">
+              <input type="number" name="quantity" value="1" min="1" max="{{ product.stock }}" style="width: 5rem;" />
+              <button type="submit" class="btn btn-primary btn-block">Add to cart</button>
+            </div>
+          </form>
+        {% else %}
+          <p class="text-sm muted">
+            <a href="/login?next=/products/{{ product.slug }}">Sign in</a> or
+            <a href="/register">create an account</a> to add this to your cart.
+          </p>
+        {% endif %}
+
+        <p class="text-sm muted" style="margin-top: 1rem;">
+          {% if product.in_stock %}{{ product.stock }} in stock{% else %}Currently out of stock{% endif %}
+        </p>
+      </div>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/carousel.js"></script>
+{% endblock %}

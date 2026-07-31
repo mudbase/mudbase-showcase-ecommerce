@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Seller dashboard{% endblock %}
+{% block content %}
+  <section class="section">
+    <h1>Orders</h1>
+    <p class="muted text-sm" style="margin-bottom:1.25rem;">Fulfillment queue — all customer orders, newest first.</p>
+
+    {% if orders_error %}
+      <p class="error-state">{{ orders_error }}</p>
+    {% elif not orders %}
+      <div class="empty-state">No orders yet — they&apos;ll appear here once a customer checks out.</div>
+    {% else %}
+      <div class="order-list">
+        {% for order in orders %}
+          <div class="order-row">
+            <div>
+              <a href="/orders/{{ order.id }}" style="font-weight:600; text-decoration:none;">Order #{{ order.short_id }}</a>
+              <p class="muted text-sm" style="margin:0.2rem 0 0;">{{ order.shipping_name or "Guest" }} &middot; {{ order.created_at | date }}</p>
+            </div>
+            <span>{{ order.formatted_subtotal }}</span>
+            {% include "partials/order_status_badge.html" %}
+            {% if order.next_status %}
+              <form method="post" action="/seller/orders/{{ order.id }}/advance">
+                <button type="submit" class="btn btn-outline btn-sm">Mark {{ order.next_status.value }}</button>
+              </form>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </section>
+
+  <section class="section">
+    <div class="section-head">
+      <h2>Products</h2>
+      <a class="btn btn-primary" href="/seller/products/new">Add product</a>
+    </div>
+
+    {% if products_error %}
+      <p class="error-state">{{ products_error }}</p>
+    {% elif not products %}
+      <div class="empty-state">
+        <p style="margin-bottom:1rem;">No products listed yet.</p>
+        <a class="btn btn-primary" href="/seller/products/new">Add your first product</a>
+      </div>
+    {% else %}
+      <table>
+        <thead>
+          <tr><th>Name</th><th class="num">Price</th><th class="num">Stock</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for product in products %}
+            <tr>
+              <td>{{ product.name }}</td>
+              <td class="num">
+                {% if product.discount_percent %}
+                  <span class="price-compare">{{ product.formatted_compare_at_price }}</span>
+                {% endif %}
+                {{ product.formatted_price }}
+                {% if product.discount_percent %}<span class="badge badge-secondary">-{{ product.discount_percent }}%</span>{% endif %}
+              </td>
+              <td class="num">{{ product.stock }}</td>
+              <td>
+                {% if product.is_active %}
+                  <span class="badge badge-success">Active</span>
+                {% else %}
+                  <span class="badge badge-secondary">Hidden</span>
+                {% endif %}
+              </td>
+              <td style="text-align:right;">
+                <a class="btn btn-outline btn-sm" href="/seller/products/{{ product.id }}/edit" aria-label="Edit {{ product.name }}">Edit</a>
+                <form method="post" action="/seller/products/{{ product.id }}/delete" style="display:inline;" onsubmit="return confirm('Delete &quot;{{ product.name }}&quot;? This can&#39;t be undone.');">
+                  <button type="submit" class="btn btn-outline btn-sm" aria-label="Delete {{ product.name }}">Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% endif %}
+  </section>
+{% endblock %}

@@ -1,0 +1,27 @@
+{{/* Shared partials parsed into every page's template set, so poll-refreshed fragments (see
+     handleSellerOrdersFragment) can render byte-for-byte the same markup as the full page. */}}
+{{define "orders_queue_body"}}
+{{if .OrdersEmpty}}
+<div class="empty-state"><p>No orders yet — they'll appear here the instant one comes in.</p></div>
+{{else}}
+<div class="order-list">
+  {{range .Orders}}
+  <div class="order-row" style="text-decoration:none">
+    <div>
+      <a href="/orders/{{.ID}}" style="font-weight:600;text-decoration:none">Order #{{.ShortID}}</a>
+      <p class="muted">{{.ShippingLabel}} · {{.CreatedLabel}}</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <span>{{.SubtotalLabel}}</span>
+      <span class="badge-pill badge-{{.StatusVariant}}">{{.StatusLabel}}</span>
+      {{if .HasNextStatus}}
+      <form method="post" action="/seller/orders/{{.ID}}/advance" class="inline-form">
+        <button type="submit" class="button button-outline button-sm">Mark {{.NextStatus}}</button>
+      </form>
+      {{end}}
+    </div>
+  </div>
+  {{end}}
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Your orders{% endblock %}
+{% block content %}
+  <h1>Your orders</h1>
+
+  {% if load_error %}
+    <p class="error-state">{{ load_error }}</p>
+  {% elif not orders %}
+    <div class="empty-state">No orders yet.</div>
+  {% else %}
+    <div class="order-list">
+      {% for order in orders %}
+        <a class="order-row" href="/orders/{{ order.id }}">
+          <div>
+            <p style="font-weight:600; margin:0;">Order #{{ order.short_id }}</p>
+            <p class="muted text-sm" style="margin:0.2rem 0 0;">{{ order.created_at | date }}</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:1rem;">
+            <span>{{ order.formatted_subtotal }}</span>
+            {% include "partials/order_status_badge.html" %}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

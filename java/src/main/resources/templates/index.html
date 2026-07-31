@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Commonwealth Goods</title>
+  <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
+</head>
+<body>
+<div th:replace="~{fragments/layout :: header}"></div>
+
+<main class="container">
+  <h1 class="page-title">Commonwealth Goods</h1>
+  <p class="lede">Every product, order, cart, and payment on this page is served by a real Mudbase project — no custom backend beyond the payment-link proxy. Browse freely; your cart follows you the moment you sign in.</p>
+
+  <div th:if="${categories != null and !categories.isEmpty()}" class="category-filter" role="group" aria-label="Filter by category">
+    <a th:href="@{/}" class="category-pill" th:classappend="${selectedCategory == null} ? 'active' : ''">All</a>
+    <a th:each="category : ${categories}"
+       th:href="@{/(category=${category})}"
+       class="category-pill"
+       th:classappend="${selectedCategory == category} ? 'active' : ''"
+       th:text="${category}">Category</a>
+  </div>
+
+  <div th:if="${products.isEmpty()}" class="empty-state">
+    <p th:if="${selectedCategory != null}" th:text="'No products in &quot;' + ${selectedCategory} + '&quot; yet.'">No products.</p>
+    <p th:unless="${selectedCategory != null}">No products listed yet — check back soon.</p>
+  </div>
+
+  <div th:unless="${products.isEmpty()}" class="grid-products">
+    <a th:each="product : ${products}" th:href="@{/products/{slug}(slug=${product.slug})}" class="product-card">
+      <div class="product-media">
+        <img th:if="${!product.images.isEmpty()}" th:src="${product.images[0]}" th:alt="${product.name}" />
+        <div th:if="${product.images.isEmpty()}" class="no-image">No image</div>
+        <div class="badge-row">
+          <span th:if="${product.outOfStock}" class="badge badge-secondary">Out of stock</span>
+          <span th:if="${product.hasDiscount()}" class="badge badge-accent" th:text="${product.discountPercent} + '% off'">10% off</span>
+        </div>
+      </div>
+      <div class="product-body">
+        <p class="product-category" th:text="${product.categoryOrDefault}">General</p>
+        <h3 class="product-name" th:text="${product.name}">Name</h3>
+      </div>
+      <div class="price-row">
+        <span class="price tabular" th:text="${product.formattedPrice}">$0.00</span>
+        <span th:if="${product.hasDiscount()}" class="price-compare tabular" th:text="${product.formattedCompareAtPrice}">$0.00</span>
+      </div>
+    </a>
+  </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

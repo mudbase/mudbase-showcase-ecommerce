@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title th:text="'Order #' + ${order.shortOrderNumber} + ' — Commonwealth Goods'">Order — Commonwealth Goods</title>
+  <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
+</head>
+<body>
+<div th:replace="~{fragments/layout :: header}"></div>
+
+<main class="container" style="max-width:640px">
+  <p th:if="${checkoutNotice}" class="alert alert-notice" th:text="${checkoutNotice}">Notice</p>
+
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+    <div>
+      <h1 class="page-title" th:text="'Order #' + ${order.shortOrderNumber}">Order #ABC123</h1>
+      <p class="muted" th:text="${order.formattedCreatedAt}">Date</p>
+    </div>
+    <span class="badge" th:classappend="'badge-' + ${order.orderStatus.badgeVariant}" th:text="${order.orderStatus.label}">Status</span>
+  </div>
+
+  <p th:if="${order.isCancelled()}" style="color:var(--color-destructive-ink)">This order was cancelled.</p>
+
+  <ol th:unless="${order.isCancelled()}" class="timeline">
+    <li th:each="step, iter : ${order.timelineSteps}" class="timeline-step">
+      <span class="timeline-dot" th:classappend="${step.done} ? 'done' : ''" th:text="${step.done} ? '✓' : ${iter.count}">1</span>
+      <span class="timeline-label" th:classappend="${step.done} ? 'done' : ''" th:text="${step.label}">Placed</span>
+      <span th:if="${!iter.last}" class="timeline-connector" th:classappend="${step.done} ? 'done' : ''"></span>
+    </li>
+  </ol>
+
+  <hr class="sep" style="margin:24px 0" />
+
+  <div>
+    <h2 style="font-size:1rem">Items</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Item</th><th class="text-right">Qty</th><th class="text-right">Price</th><th class="text-right">Total</th></tr>
+        </thead>
+        <tbody>
+          <tr th:each="item : ${order.items}">
+            <td th:text="${item.name}">Item</td>
+            <td class="text-right tabular" th:text="${item.quantity}">1</td>
+            <td class="text-right tabular" th:text="${item.getFormattedUnitPrice(order.currency)}">$0.00</td>
+            <td class="text-right tabular" th:text="${item.getFormattedLineTotal(order.currency)}">$0.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-weight:600;margin-top:12px">
+      <span>Total</span>
+      <span class="tabular" th:text="${order.formattedSubtotal}">$0.00</span>
+    </div>
+  </div>
+
+  <div th:if="${order.shippingAddress != null}" style="margin-top:24px">
+    <h2 style="font-size:1rem">Shipping to</h2>
+    <p class="muted">
+      <span th:each="line, iter : ${order.shippingAddress.displayLines}">
+        <span th:text="${line}">line</span><br th:if="${!iter.last}" />
+      </span>
+    </p>
+  </div>
+
+  <div th:if="${order.hasUnpaidPaymentLink()}" style="margin-top:24px">
+    <a th:href="@{/checkout/{token}(token=${order.paymentLinkToken})}" class="btn btn-accent">Complete payment</a>
+  </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

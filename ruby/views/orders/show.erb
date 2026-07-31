@@ -1,0 +1,67 @@
+<% steps = [["pending", "Placed"], ["paid", "Paid"], ["shipped", "Shipped"], ["delivered", "Delivered"]]
+   effective_status = @order[:orderStatus] == "awaiting_payment" ? "pending" : @order[:orderStatus]
+   current_index = steps.index { |status, _label| status == effective_status } %>
+
+<div style="max-width:40rem;">
+  <div style="display:flex; align-items:center; justify-content:space-between;">
+    <div>
+      <h1 class="page-title">Order #<%= short_order_id(@order[:_id]) %></h1>
+      <p class="order-meta"><%= format_date(@order[:createdAt]) %></p>
+    </div>
+    <span class="badge-pill badge-<%= order_status_variant(@order[:orderStatus]) %>"><%= order_status_label(@order[:orderStatus]) %></span>
+  </div>
+
+  <% if @order[:orderStatus] == "cancelled" %>
+    <p style="color:var(--danger);">This order was cancelled.</p>
+  <% else %>
+    <ul class="timeline">
+      <% steps.each_with_index do |(status, label), i| %>
+        <% done = i <= current_index %>
+        <li>
+          <span class="dot <%= 'done' if done %>"><%= done ? "✓" : i + 1 %></span>
+          <span class="label <%= 'done' if done %>"><%= label %></span>
+          <% if i < steps.length - 1 %><span class="connector <%= 'done' if done %>"></span><% end %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+
+  <hr style="border:none; border-top:1px solid var(--border); margin:1.5rem 0;">
+
+  <h2 style="font-size:1rem;">Items</h2>
+  <table class="data-table">
+    <thead>
+      <tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th></tr>
+    </thead>
+    <tbody>
+      <% @items.each do |item| %>
+        <tr>
+          <td><%= h(item[:name]) %></td>
+          <td class="num"><%= item[:quantity] %></td>
+          <td class="num"><%= format_money(item[:priceCents], @order[:currency]) %></td>
+          <td class="num"><%= format_money(item[:priceCents] * item[:quantity], @order[:currency]) %></td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+  <div class="summary-row total" style="margin-top:0.75rem;">
+    <span>Total</span>
+    <span><%= format_money(@order[:subtotalCents], @order[:currency]) %></span>
+  </div>
+
+  <% if @address %>
+    <h2 style="font-size:1rem; margin-top:2rem;">Shipping to</h2>
+    <p style="color:var(--muted);">
+      <%= h(@address[:fullName]) %><br>
+      <%= h(@address[:line1]) %><% if @address[:line2] && !@address[:line2].to_s.empty? %>, <%= h(@address[:line2]) %><% end %><br>
+      <%= h(@address[:city]) %>, <%= h(@address[:region]) %> <%= h(@address[:postalCode]) %><br>
+      <%= h(@address[:country]) %>
+    </p>
+  <% end %>
+
+  <% if @order[:paymentLinkToken] && @order[:paymentStatus] != "paid" %>
+    <p style="margin-top:1.5rem;">
+      <a href="/checkout/<%= @order[:paymentLinkToken] %>" class="btn">Complete payment</a>
+    </p>
+  <% end %>
+</div>

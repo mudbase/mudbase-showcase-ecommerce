@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Pay for your order{% endblock %}
+{% block content %}
+  <div class="auth-shell">
+    <h1 style="text-align:center;">Pay for your order</h1>
+
+    {% if load_error %}
+      <div class="card"><div class="card-body" style="padding:1.5rem;"><p class="error-state">{{ load_error }}</p></div></div>
+    {% else %}
+      <div class="card" data-payment-panel data-status-url="/checkout/{{ token }}/status">
+        <div class="card-body" style="padding: 1.5rem;">
+          <div class="section-head">
+            <span>Complete your payment</span>
+            <span class="badge" data-status-badge>{{ link.status.value }}</span>
+          </div>
+
+          <p class="payment-status" data-status-message>
+            {% if link.status.value == "paid" %}
+              <span class="status-paid">Payment received — thank you!</span>
+            {% elif link.status.value in ("expired", "cancelled") %}
+              <span class="status-dead">This payment link is no longer active.</span>
+            {% else %}
+              <span class="status-pending">Waiting for payment — this page updates automatically.</span>
+            {% endif %}
+          </p>
+
+          <div data-pending-details style="{{ 'display:none;' if link.status.value != 'pending' else '' }}">
+            <div class="pay-detail">
+              <span class="muted">Amount</span>
+              <span data-field="amount">{{ link.amount }} {{ link.currency }}</span>
+            </div>
+            <div class="pay-detail">
+              <span class="muted">Network</span>
+              <span data-field="network">{{ link.network }}</span>
+            </div>
+            <div class="pay-detail">
+              <span class="muted">Send to</span>
+              <span class="pay-address" data-field="address">{{ link.address }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/payment_poll.js"></script>
+{% endblock %}

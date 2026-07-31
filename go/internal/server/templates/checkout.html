@@ -1,0 +1,103 @@
+{{define "content"}}
+{{if .IsEmpty}}
+<div class="empty-state"><p>Your cart is empty — add something before checking out.</p></div>
+{{else}}
+<div class="checkout-grid">
+  <div>
+    <h1>Checkout</h1>
+
+    {{if not .IsCustomer}}
+      {{if eq .AuthMode "login"}}
+        <p class="muted">Sign in to continue — your cart carries over to your account.</p>
+        <form method="post" action="/checkout/login" class="stacked">
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" autocomplete="current-password" required>
+          </div>
+          <button type="submit" class="button">Sign in</button>
+        </form>
+        <p class="muted">New here? <a href="/checkout?authMode=register">Create an account</a></p>
+      {{else}}
+        <p class="muted">Create an account to place this order — your cart carries over, and you'll be able to track it from Orders afterward.</p>
+        <form method="post" action="/checkout/register" class="stacked">
+          <div class="field-row">
+            <div class="field">
+              <label for="firstName">First name</label>
+              <input id="firstName" name="firstName" autocomplete="given-name" required>
+            </div>
+            <div class="field">
+              <label for="lastName">Last name</label>
+              <input id="lastName" name="lastName" autocomplete="family-name" required>
+            </div>
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" autocomplete="new-password" minlength="8" required>
+          </div>
+          <label class="checkbox-field">
+            <input type="checkbox" name="agreedToTerms">
+            I agree to the Terms of Service and Privacy Policy.
+          </label>
+          <button type="submit" class="button">Create account</button>
+        </form>
+        <p class="muted">Already have an account? <a href="/checkout?authMode=login">Sign in</a></p>
+      {{end}}
+    {{else}}
+      <form method="post" action="/checkout/place-order" class="stacked">
+        <div class="field">
+          <label for="fullName">Full name</label>
+          <input id="fullName" name="fullName" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="line1">Address</label>
+          <input id="line1" name="line1" autocomplete="address-line1" required>
+        </div>
+        <div class="field">
+          <label for="line2">Apartment, suite, etc. (optional)</label>
+          <input id="line2" name="line2" autocomplete="address-line2">
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="city">City</label>
+            <input id="city" name="city" autocomplete="address-level2" required>
+          </div>
+          <div class="field">
+            <label for="region">State / region</label>
+            <input id="region" name="region" autocomplete="address-level1" required>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
+            <label for="postalCode">Postal code</label>
+            <input id="postalCode" name="postalCode" autocomplete="postal-code" required>
+          </div>
+          <div class="field">
+            <label for="country">Country</label>
+            <input id="country" name="country" autocomplete="country-name" required>
+          </div>
+        </div>
+        <button type="submit" class="button">Continue to payment</button>
+      </form>
+    {{end}}
+  </div>
+
+  <div>
+    <div class="summary-card">
+      <h2>Order summary</h2>
+      {{range .Items}}
+      <div class="summary-row"><span>{{.Quantity}} × {{.Name}}</span><span>{{.LineTotalLabel}}</span></div>
+      {{end}}
+      <div class="summary-total"><span>Total</span><span>{{.SubtotalLabel}}</span></div>
+    </div>
+  </div>
+</div>
+{{end}}
+{{end}}

@@ -1,0 +1,23 @@
+@page "{id}"
+@model MudbaseShowcase.Ecommerce.Pages.Seller.Products.EditModel
+@{
+    ViewData["Title"] = "Edit product";
+}
+
+<h1 class="h4 fw-semibold mb-4">Edit product</h1>
+
+@if (Model.IsNotFound)
+{
+    <p class="text-muted">This product couldn't be found.</p>
+}
+else
+{
+    @if (Model.SubmitError is not null)
+    {
+        <p class="text-danger" role="alert">@Model.SubmitError</p>
+    }
+    <form method="post" class="mx-auto" style="max-width: 520px;">
+        <partial name="_ProductForm" for="Input" />
+        <button type="submit" class="btn btn-brand">Save product</button>
+    </form>
+}

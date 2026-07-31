@@ -1,0 +1,97 @@
+<div class="pay-card" id="pay-app" data-token="<%= h(@token) %>" data-status-url="/checkout/<%= URI.encode_www_form_component(@token) %>/status.json">
+  <h1 class="page-title" style="font-size:1.4rem; text-align:center;">Pay for your order</h1>
+
+  <div id="pay-loading" style="text-align:center; color:var(--muted); padding:2rem 0;">
+    Checking payment status…
+  </div>
+
+  <div id="pay-body" hidden>
+    <p id="pay-status-line" style="text-align:center; font-weight:600; margin-bottom:1rem;"></p>
+
+    <div id="pay-pending-details" hidden>
+      <p style="text-align:center; color:var(--muted); font-size:0.9rem;">
+        Waiting for payment - this page updates automatically.
+      </p>
+      <div class="pay-row"><span>Amount</span><span id="pay-amount"></span></div>
+      <div class="pay-row"><span>Network</span><span id="pay-network"></span></div>
+      <div class="pay-row"><span>Send to</span><span class="pay-address" id="pay-address"></span></div>
+    </div>
+
+    <div id="pay-terminal-details" hidden style="text-align:center; padding:1rem 0;">
+      <p id="pay-terminal-message"></p>
+    </div>
+  </div>
+
+  <p id="pay-error" role="alert" style="color:var(--danger); text-align:center; display:none;"></p>
+</div>
+
+<script>
+(function () {
+  var POLL_INTERVAL_MS = 4000;
+  var app = document.getElementById("pay-app");
+  var statusUrl = app.dataset.statusUrl;
+
+  var loadingEl = document.getElementById("pay-loading");
+  var bodyEl = document.getElementById("pay-body");
+  var statusLineEl = document.getElementById("pay-status-line");
+  var pendingEl = document.getElementById("pay-pending-details");
+  var terminalEl = document.getElementById("pay-terminal-details");
+  var terminalMessageEl = document.getElementById("pay-terminal-message");
+  var errorEl = document.getElementById("pay-error");
+
+  function render(link) {
+    loadingEl.hidden = true;
+    bodyEl.hidden = false;
+    errorEl.style.display = "none";
+
+    if (link.status === "paid") {
+      statusLineEl.textContent = "Paid";
+      pendingEl.hidden = true;
+      terminalEl.hidden = false;
+      terminalMessageEl.textContent = "Payment received - thank you!";
+      return;
+    }
+
+    if (link.status === "expired" || link.status === "cancelled") {
+      statusLineEl.textContent = link.status === "expired" ? "Expired" : "Cancelled";
+      pendingEl.hidden = true;
+      terminalEl.hidden = false;
+      terminalMessageEl.textContent = "This payment link is no longer active.";
+      return;
+    }
+
+    statusLineEl.textContent = "Pending";
+    terminalEl.hidden = true;
+    pendingEl.hidden = false;
+    document.getElementById("pay-amount").textContent = link.amount + " " + link.currency;
+    document.getElementById("pay-network").textContent = link.network;
+    document.getElementById("pay-address").textContent = link.address;
+  }
+
+  function showError(message) {
+    loadingEl.hidden = true;
+    errorEl.style.display = "block";
+    errorEl.textContent = message;
+  }
+
+  function tick() {
+    fetch(statusUrl, { headers: { Accept: "application/json" } })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Payment link not available");
+        return res.json();
+      })
+      .then(function (link) {
+        render(link);
+        if (link.status === "pending") {
+          setTimeout(tick, POLL_INTERVAL_MS);
+        }
+      })
+      .catch(function (err) {
+        showError(err.message || "Couldn't check payment status");
+        setTimeout(tick, POLL_INTERVAL_MS);
+      });
+  }
+
+  tick();
+})();
+</script>

@@ -1,0 +1,21 @@
+{{define "content"}}
+<h1>Your orders</h1>
+{{if .IsEmpty}}
+<div class="empty-state"><p>No orders yet.</p></div>
+{{else}}
+<div class="order-list">
+  {{range .Orders}}
+  <a class="order-row" href="/orders/{{.ID}}">
+    <div>
+      <p style="font-weight:600">Order #{{.ShortID}}</p>
+      <p class="muted">{{.CreatedLabel}}</p>
+    </div>
+    <div style="display:flex;align-items:center;gap:1rem">
+      <span>{{.SubtotalLabel}}</span>
+      <span class="badge-pill badge-{{.StatusVariant}}">{{.StatusLabel}}</span>
+    </div>
+  </a>
+  {{end}}
+</div>
+{{end}}
+{{end}}

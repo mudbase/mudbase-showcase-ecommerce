@@ -1,0 +1,60 @@
+{{define "content"}}
+<div style="max-width:40rem">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem">
+    <div>
+      <h1>Order #{{.Order.ShortID}}</h1>
+      <p class="muted">{{.Order.CreatedLabel}}</p>
+    </div>
+    <span class="badge-pill badge-{{.Order.StatusVariant}}">{{.Order.StatusLabel}}</span>
+  </div>
+
+  {{if .Timeline}}
+  <ol class="timeline">
+    {{range $i, $step := .Timeline}}
+    <li class="{{if $step.Done}}done{{end}}">
+      <span class="dot">{{if $step.Done}}✓{{else}}{{add1 $i}}{{end}}</span>
+      <span class="step-label">{{$step.Label}}</span>
+      {{if lt (add1 $i) (len $.Timeline)}}<span class="connector"></span>{{end}}
+    </li>
+    {{end}}
+  </ol>
+  {{else}}
+  <p style="color:var(--color-destructive)">This order was cancelled.</p>
+  {{end}}
+
+  <hr style="border-color:var(--color-border);margin:1.5rem 0">
+
+  <h2>Items</h2>
+  <table>
+    <thead><tr><th>Item</th><th class="text-right">Qty</th><th class="text-right">Price</th><th class="text-right">Total</th></tr></thead>
+    <tbody>
+      {{range .Items}}
+      <tr>
+        <td>{{.Name}}</td>
+        <td class="text-right">{{.Quantity}}</td>
+        <td class="text-right">{{.PriceLabel}}</td>
+        <td class="text-right">{{.LineTotalLabel}}</td>
+      </tr>
+      {{end}}
+    </tbody>
+  </table>
+  <div style="display:flex;justify-content:space-between;font-weight:600;margin-top:0.75rem">
+    <span>Total</span>
+    <span>{{.Order.SubtotalLabel}}</span>
+  </div>
+
+  {{if .Address}}
+  <h2 style="margin-top:2rem">Shipping to</h2>
+  <p class="muted">
+    {{.Address.FullName}}<br>
+    {{.Address.Line1}}{{if .Address.Line2}}, {{.Address.Line2}}{{end}}<br>
+    {{.Address.City}}, {{.Address.Region}} {{.Address.PostalCode}}<br>
+    {{.Address.Country}}
+  </p>
+  {{end}}
+
+  {{if .ShowPayButton}}
+  <a class="button" href="/checkout/{{.Order.PaymentLinkToken}}" style="margin-top:1.5rem">Complete payment</a>
+  {{end}}
+</div>
+{{end}}

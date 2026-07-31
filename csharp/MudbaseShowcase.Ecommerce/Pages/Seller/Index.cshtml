@@ -1,0 +1,119 @@
+@page
+@model MudbaseShowcase.Ecommerce.Pages.Seller.IndexModel
+@using MudbaseShowcase.Ecommerce.Services
+@{
+    ViewData["Title"] = "Seller dashboard";
+}
+
+<section class="mb-5">
+    <div class="d-flex justify-content-between align-items-center mb-1">
+        <h1 class="h4 fw-semibold mb-0">Orders</h1>
+        <a asp-page="/Seller/Index" class="btn btn-sm btn-outline-secondary">Refresh</a>
+    </div>
+    <p class="text-muted small mb-3">Fulfillment queue for every order placed in this store.</p>
+
+    @if (Model.OrdersError is not null)
+    {
+        <p class="text-danger">@Model.OrdersError</p>
+    }
+    else if (Model.Orders.Count == 0)
+    {
+        <div class="border border-dashed rounded p-5 text-center text-muted">
+            No orders yet — they'll appear here the instant one comes in.
+        </div>
+    }
+    else
+    {
+        <ul class="list-group list-group-flush border rounded">
+            @foreach (OrderDocument order in Model.Orders)
+            {
+                string? next = OrderStatus.NextStatus(order.OrderStatus);
+                <li class="list-group-item d-flex align-items-center gap-3">
+                    <div class="flex-grow-1 min-w-0">
+                        <a class="fw-medium text-decoration-none" asp-page="/Orders/Detail" asp-route-id="@order.Id">
+                            Order #@MoneyFormatter.ShortId(order.Id)
+                        </a>
+                        <p class="text-muted small mb-0">@(order.ShippingName ?? "Guest") · @MoneyFormatter.FormatDate(order.CreatedAt)</p>
+                    </div>
+                    <span>@MoneyFormatter.Format(order.SubtotalCents, order.Currency)</span>
+                    <span class="badge badge-status-@order.OrderStatus">@OrderStatus.Label(order.OrderStatus)</span>
+                    @if (next is not null)
+                    {
+                        <form method="post" asp-page-handler="AdvanceStatus">
+                            <input type="hidden" name="orderId" value="@order.Id" />
+                            <input type="hidden" name="nextStatus" value="@next" />
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">Mark @OrderStatus.Label(next)</button>
+                        </form>
+                    }
+                </li>
+            }
+        </ul>
+    }
+</section>
+
+<section>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 fw-semibold mb-0">Products</h2>
+        <a class="btn btn-brand" asp-page="/Seller/Products/New">Add product</a>
+    </div>
+
+    @if (Model.ProductsError is not null)
+    {
+        <p class="text-danger">@Model.ProductsError</p>
+    }
+    else if (Model.Products.Count == 0)
+    {
+        <div class="border border-dashed rounded p-5 text-center text-muted">
+            <p class="mb-3">No products listed yet.</p>
+            <a class="btn btn-brand" asp-page="/Seller/Products/New">Add your first product</a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive border rounded">
+            <table class="table mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Name</th>
+                        <th class="text-end">Price</th>
+                        <th class="text-end">Stock</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (ProductDocument product in Model.Products)
+                    {
+                        int? discount = product.DiscountPercent();
+                        <tr>
+                            <td class="text-truncate" style="max-width:240px;">@product.Name</td>
+                            <td class="text-end">
+                                @if (discount is not null)
+                                {
+                                    <span class="text-muted text-decoration-line-through small me-1">@MoneyFormatter.Format(product.CompareAtPriceCents!.Value, product.Currency)</span>
+                                }
+                                @MoneyFormatter.Format(product.PriceCents, product.Currency)
+                                @if (discount is not null)
+                                {
+                                    <span class="badge bg-secondary ms-1">-@discount%</span>
+                                }
+                            </td>
+                            <td class="text-end">@product.Stock</td>
+                            <td>
+                                <span class="badge @(product.IsActive ? "bg-success" : "bg-secondary")">@(product.IsActive ? "Active" : "Hidden")</span>
+                            </td>
+                            <td class="text-end">
+                                <a class="btn btn-sm btn-outline-secondary" asp-page="/Seller/Products/Edit" asp-route-id="@product.Id">Edit</a>
+                                <form method="post" asp-page-handler="DeleteProduct" class="d-inline"
+                                      onsubmit="return confirm('Delete &quot;@product.Name&quot;? This can&#39;t be undone.');">
+                                    <input type="hidden" name="productId" value="@product.Id" />
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>

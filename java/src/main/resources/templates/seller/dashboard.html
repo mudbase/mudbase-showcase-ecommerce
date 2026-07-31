@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Seller dashboard — Commonwealth Goods</title>
+  <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
+</head>
+<body>
+<div th:replace="~{fragments/layout :: header}"></div>
+
+<main class="container">
+  <section style="margin-bottom:56px">
+    <h1 class="page-title" style="margin-bottom:2px">Orders</h1>
+    <p class="muted" style="margin-bottom:20px">The fulfillment queue - every order across every customer.</p>
+
+    <div th:if="${orders.isEmpty()}" class="empty-state">
+      <p>No orders yet — they'll appear here the instant one comes in.</p>
+    </div>
+
+    <ul th:unless="${orders.isEmpty()}" class="line-list">
+      <li th:each="order : ${orders}" class="line-item">
+        <div style="min-width:0;flex:1">
+          <a th:href="@{/orders/{id}(id=${order.id})}" style="font-weight:600;text-decoration:none;color:inherit" th:text="'Order #' + ${order.shortOrderNumber}">Order #ABC123</a>
+          <p class="muted" style="margin:2px 0 0;font-size:0.85rem" th:text="${(order.shippingName != null ? order.shippingName : 'Guest') + ' · ' + order.formattedCreatedAt}">Guest · date</p>
+        </div>
+        <span class="tabular" th:text="${order.formattedSubtotal}">$0.00</span>
+        <span class="badge" th:classappend="'badge-' + ${order.orderStatus.badgeVariant}" th:text="${order.orderStatus.label}">Status</span>
+        <form th:if="${order.orderStatus.nextFulfillmentStatus != null}" method="post" th:action="@{/seller/orders/{id}/advance(id=${order.id})}">
+          <button type="submit" class="btn btn-outline btn-sm" th:text="'Mark ' + ${order.orderStatus.nextFulfillmentStatus.label}">Mark shipped</button>
+        </form>
+      </li>
+    </ul>
+  </section>
+
+  <section>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h2 class="page-title" style="margin:0">Products</h2>
+      <a th:href="@{/seller/products/new}" class="btn btn-accent">Add product</a>
+    </div>
+
+    <div th:if="${products.isEmpty()}" class="empty-state">
+      <p style="margin-bottom:16px">No products listed yet.</p>
+      <a th:href="@{/seller/products/new}" class="btn btn-accent">Add your first product</a>
+    </div>
+
+    <div th:unless="${products.isEmpty()}" class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Name</th><th class="text-right">Price</th><th class="text-right">Stock</th><th>Status</th><th></th></tr>
+        </thead>
+        <tbody>
+          <tr th:each="product : ${products}">
+            <td th:text="${product.name}">Name</td>
+            <td class="text-right tabular">
+              <span th:if="${product.hasDiscount()}" class="muted" style="text-decoration:line-through;font-size:0.8rem;margin-right:6px" th:text="${product.formattedCompareAtPrice}">$0.00</span>
+              <span th:text="${product.formattedPrice}">$0.00</span>
+              <span th:if="${product.hasDiscount()}" class="badge badge-secondary" th:text="'-' + ${product.discountPercent} + '%'">-10%</span>
+            </td>
+            <td class="text-right tabular" th:text="${product.stock}">0</td>
+            <td>
+              <span class="badge" th:classappend="${product.active} ? 'badge-success' : 'badge-secondary'" th:text="${product.active ? 'Active' : 'Hidden'}">Active</span>
+            </td>
+            <td style="text-align:right;white-space:nowrap">
+              <a th:href="@{/seller/products/{id}/edit(id=${product.id})}" class="btn-icon" aria-label="Edit">✎</a>
+              <form th:action="@{/seller/products/{id}/delete(id=${product.id})}" method="post" style="display:inline"
+                    class="delete-product-form" th:data-product-name="${product.name}">
+                <button type="submit" class="btn-icon" aria-label="Delete">🗑</button>
+              </form>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+
+<script>
+  document.querySelectorAll('.delete-product-form').forEach(function (form) {
+    form.addEventListener('submit', function (event) {
+      const name = form.getAttribute('data-product-name') || 'this product';
+      if (!window.confirm('Delete "' + name + '"? This can\'t be undone.')) {
+        event.preventDefault();
+      }
+    });
+  });
+</script>
+</body>
+</html>

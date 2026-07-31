@@ -1,0 +1,56 @@
+{{define "content"}}
+<h1>{{if .IsEdit}}Edit product{{else}}Add product{{end}}</h1>
+<form method="post" action="{{.Action}}" class="stacked" style="max-width:32rem" novalidate>
+  <div class="field">
+    <label for="name">Name</label>
+    <input id="name" name="name" value="{{.Values.Name}}" required>
+  </div>
+  <div class="field">
+    <label for="description">Description</label>
+    <textarea id="description" name="description" rows="5">{{.Values.Description}}</textarea>
+  </div>
+  <div class="field-row">
+    <div class="field">
+      <label for="priceCents">Price (cents)</label>
+      <input type="number" id="priceCents" name="priceCents" value="{{.Values.PriceCents}}" min="0" required>
+    </div>
+    <div class="field">
+      <label for="stock">Stock</label>
+      <input type="number" id="stock" name="stock" value="{{.Values.Stock}}" min="0" required>
+    </div>
+  </div>
+  <div class="field">
+    <label for="compareAtPriceCents">Compare-at price (cents)</label>
+    <input type="number" id="compareAtPriceCents" name="compareAtPriceCents" value="{{.Values.CompareAtPriceCents}}" placeholder="Leave blank for no discount" min="0">
+    <p class="muted" style="font-size:0.8rem">Set this higher than the price to show a strikethrough &amp; discount badge in the catalog.</p>
+  </div>
+  <div class="field">
+    <label for="category">Category</label>
+    <input id="category" name="category" value="{{.Values.Category}}">
+  </div>
+  <div class="field">
+    <label for="imageUrl">Main image URL</label>
+    <input id="imageUrl" name="imageUrl" value="{{.Values.ImageURL}}" placeholder="https://…">
+    <p class="muted" style="font-size:0.8rem">
+      Mudbase file uploads require an owner/admin/developer system role, which project end-users
+      (sellers included) don't have — see README "Known limitations". Paste a hosted image URL for now.
+    </p>
+  </div>
+
+  <div class="field">
+    <label>Additional photos</label>
+    {{range $i, $url := .Values.GalleryURLs}}
+    <input name="galleryUrl{{$i}}" value="{{$url}}" placeholder="https://…" style="margin-bottom:0.5rem">
+    {{end}}
+    <p class="muted" style="font-size:0.8rem">Shown as a rotating gallery on the product page. Leave any slot blank to skip it.</p>
+  </div>
+
+  <label class="checkbox-field">
+    <input type="checkbox" name="isActive" {{if .Values.IsActive}}checked{{end}}>
+    Visible in the catalog
+  </label>
+  <input type="hidden" name="currency" value="{{if .Values.Currency}}{{.Values.Currency}}{{else}}USD{{end}}">
+
+  <button type="submit" class="button">Save product</button>
+</form>
+{{end}}

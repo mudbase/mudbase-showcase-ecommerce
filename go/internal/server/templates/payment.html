@@ -1,0 +1,72 @@
+{{define "content"}}
+<div style="max-width:28rem;margin:0 auto">
+  <h1 class="center">Pay for your order</h1>
+  <div class="pay-panel" id="pay-panel">
+    <p class="muted center">Loading payment details…</p>
+  </div>
+</div>
+
+<script>
+(function () {
+  var token = {{.Token}};
+  var baseUrl = {{.MudbaseURL}};
+  var panel = document.getElementById("pay-panel");
+  var pollTimer = null;
+
+  function statusBadgeClass(status) {
+    if (status === "paid") return "badge-success";
+    if (status === "expired" || status === "cancelled") return "badge-destructive";
+    return "badge-warning";
+  }
+
+  function render(link) {
+    if (!link) {
+      panel.innerHTML = '<p class="muted">Payment link not found.</p>';
+      return;
+    }
+    var badge = '<span class="badge-pill ' + statusBadgeClass(link.status) + '">' + link.status + '</span>';
+    if (link.status === "paid") {
+      panel.innerHTML =
+        '<div class="pay-row"><strong>Complete your payment</strong>' + badge + '</div>' +
+        '<p style="color:var(--color-success)">Payment received — thank you!</p>';
+      return;
+    }
+    if (link.status === "expired" || link.status === "cancelled") {
+      panel.innerHTML =
+        '<div class="pay-row"><strong>Complete your payment</strong>' + badge + '</div>' +
+        '<p style="color:var(--color-destructive)">This payment link is no longer active.</p>';
+      return;
+    }
+    panel.innerHTML =
+      '<div class="pay-row"><strong>Complete your payment</strong>' + badge + '</div>' +
+      '<p class="muted">Waiting for payment — this page updates automatically.</p>' +
+      '<div class="pay-row"><span class="muted">Amount</span><span>' + link.amount + ' ' + link.currency + '</span></div>' +
+      '<div class="pay-row"><span class="muted">Network</span><span>' + link.network + '</span></div>' +
+      '<div class="pay-row"><span class="muted">Send to</span><span class="pay-address">' + link.address + '</span></div>';
+  }
+
+  function poll() {
+    fetch(baseUrl + "/api/payment-links/" + encodeURIComponent(token))
+      .then(function (res) {
+        if (!res.ok) throw new Error("Payment link not available");
+        return res.json();
+      })
+      .then(function (body) {
+        render(body.link);
+        if (body.link && body.link.status === "pending") {
+          pollTimer = setTimeout(poll, 4000);
+        }
+      })
+      .catch(function () {
+        panel.innerHTML = '<p class="muted">Couldn\'t check payment status. Retrying…</p>';
+        pollTimer = setTimeout(poll, 4000);
+      });
+  }
+
+  poll();
+  window.addEventListener("beforeunload", function () {
+    if (pollTimer) clearTimeout(pollTimer);
+  });
+})();
+</script>
+{{end}}

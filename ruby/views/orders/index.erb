@@ -1,0 +1,22 @@
+<h1 class="page-title">Your orders</h1>
+
+<% if @orders.empty? %>
+  <div class="empty-state"><p>No orders yet.</p></div>
+<% else %>
+  <ul class="order-list">
+    <% @orders.each do |order| %>
+      <li>
+        <a class="order-row" href="/orders/<%= order[:_id] %>">
+          <div>
+            <p style="margin:0; font-weight:600;">Order #<%= short_order_id(order[:_id]) %></p>
+            <p class="order-meta"><%= format_date(order[:createdAt]) %></p>
+          </div>
+          <div style="display:flex; align-items:center; gap:1rem;">
+            <span><%= format_money(order[:subtotalCents], order[:currency]) %></span>
+            <span class="badge-pill badge-<%= order_status_variant(order[:orderStatus]) %>"><%= order_status_label(order[:orderStatus]) %></span>
+          </div>
+        </a>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

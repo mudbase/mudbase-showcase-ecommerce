@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title th:text="${product.name} + ' — Commonwealth Goods'">Product — Commonwealth Goods</title>
+  <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
+</head>
+<body>
+<div th:replace="~{fragments/layout :: header}"></div>
+
+<main class="container">
+  <div class="grid-two">
+    <div>
+      <div class="gallery-main">
+        <img th:if="${!product.images.isEmpty()}" id="mainImage" th:src="${product.images[0]}" th:alt="${product.name}" />
+        <div th:if="${product.images.isEmpty()}" class="no-image" style="display:flex;align-items:center;justify-content:center;height:100%">No image</div>
+      </div>
+      <div th:if="${product.images.size() > 1}" class="gallery-thumbs">
+        <a href="#" th:each="img, iter : ${product.images}" th:attr="onclick=|document.getElementById('mainImage').src=this.querySelector('img').src;return false;|"
+           th:classappend="${iter.index == 0} ? 'active' : ''">
+          <img th:src="${img}" th:alt="${product.name} + ' photo ' + ${iter.count}" />
+        </a>
+      </div>
+    </div>
+
+    <div>
+      <p th:if="${product.category != null and !product.category.isEmpty()}" class="badge badge-secondary" style="margin-bottom:8px" th:text="${product.category}">Category</p>
+      <h1 class="page-title" th:text="${product.name}">Product name</h1>
+      <div style="display:flex;align-items:baseline;gap:10px;margin:8px 0 16px">
+        <span class="price tabular" style="font-size:1.4rem" th:text="${product.formattedPrice}">$0.00</span>
+        <span th:if="${product.hasDiscount()}" class="price-compare tabular" th:text="${product.formattedCompareAtPrice}">$0.00</span>
+        <span th:if="${product.hasDiscount()}" class="badge badge-accent" th:text="${product.discountPercent} + '% off'">10% off</span>
+      </div>
+
+      <p th:if="${product.description != null and !product.description.isEmpty()}" class="muted" style="white-space:pre-line" th:text="${product.description}">Description</p>
+
+      <form method="post" th:action="@{/cart/add}" style="margin:20px 0">
+        <input type="hidden" name="productId" th:value="${product.id}" />
+        <input type="hidden" name="name" th:value="${product.name}" />
+        <input type="hidden" name="priceCents" th:value="${product.priceCents}" />
+        <input type="hidden" name="currency" th:value="${product.currency}" />
+        <input type="hidden" name="imageUrl" th:value="${product.images.isEmpty() ? '' : product.images[0]}" />
+        <input type="hidden" name="redirect" th:value="@{/products/{slug}(slug=${product.slug})}" />
+        <div style="display:flex;gap:12px;align-items:center">
+          <div class="qty-control">
+            <button type="button" onclick="const i=this.parentElement.querySelector('input');i.value=Math.max(1,parseInt(i.value||1)-1)">−</button>
+            <input type="number" name="quantity" value="1" min="1" th:max="${product.stock > 0 ? product.stock : 1}" style="width:44px;text-align:center;border:none;background:transparent" />
+            <button type="button" onclick="const i=this.parentElement.querySelector('input');i.value=parseInt(i.value||1)+1">+</button>
+          </div>
+          <button type="submit" class="btn btn-accent" th:disabled="${product.outOfStock}" style="flex:1" th:text="${product.outOfStock ? 'Out of stock' : 'Add to cart'}">Add to cart</button>
+        </div>
+      </form>
+
+      <p class="muted" th:text="${product.stock > 0 ? product.stock + ' in stock' : 'Currently out of stock'}">In stock</p>
+    </div>
+  </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

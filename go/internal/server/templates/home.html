@@ -1,0 +1,47 @@
+{{define "content"}}
+<div class="section">
+  <h1>Commonwealth Goods</h1>
+  <p class="muted" style="max-width:38rem">
+    Every product, order, cart, and payment on this page is served by a real Mudbase project — no
+    custom backend. Browse as a guest; your cart follows you the moment you sign in.
+  </p>
+</div>
+
+{{if .Categories}}
+<div class="category-filters" role="group" aria-label="Filter by category">
+  <a href="/" class="{{if not .ActiveCategory}}active{{end}}">All</a>
+  {{range .Categories}}
+    <a href="/?category={{.}}" class="{{if eq $.ActiveCategory .}}active{{end}}">{{.}}</a>
+  {{end}}
+</div>
+{{end}}
+
+{{if .Products}}
+<div class="grid">
+  {{range .Products}}
+  <a class="card" href="/products/{{.Slug}}">
+    <div class="card-image">
+      {{if .ImageURL}}<img src="{{.ImageURL}}" alt="{{.Name}}">{{else}}No image{{end}}
+    </div>
+    <div class="card-body">
+      <p class="card-eyebrow">{{if .Category}}{{.Category}}{{else}}General{{end}}</p>
+      <h3 class="card-title">{{.Name}}</h3>
+      <p>
+        <span class="card-price">{{.PriceLabel}}</span>
+        {{if .DiscountPercent}}<span class="card-compare">{{.CompareAtLabel}}</span>{{end}}
+      </p>
+      {{if .OutOfStock}}<span class="badge-pill badge-secondary">Out of stock</span>{{end}}
+    </div>
+  </a>
+  {{end}}
+</div>
+{{else}}
+<div class="empty-state">
+  {{if .ActiveCategory}}
+    <p>No products in "{{.ActiveCategory}}" yet.</p>
+  {{else}}
+    <p>No products listed yet — check back soon.</p>
+  {{end}}
+</div>
+{{end}}
+{{end}}

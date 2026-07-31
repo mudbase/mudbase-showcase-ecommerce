@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}{{ "Edit product" if product else "Add product" }}{% endblock %}
+{% block content %}
+  <h1>{{ "Edit product" if product else "Add product" }}</h1>
+
+  {% if form_error %}<div class="form-error" role="alert">{{ form_error }}</div>{% endif %}
+
+  <form method="post" style="max-width: 32rem;" novalidate>
+    <div class="form-group">
+      <label for="name">Name</label>
+      <input type="text" id="name" name="name" value="{{ product.name if product else '' }}" required />
+      {% if errors.name %}<p class="field-error">{{ errors.name }}</p>{% endif %}
+    </div>
+
+    <div class="form-group">
+      <label for="description">Description</label>
+      <textarea id="description" name="description" rows="5">{{ product.description if product else '' }}</textarea>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="price_cents">Price (cents)</label>
+        <input type="number" id="price_cents" name="price_cents" value="{{ product.price_cents if product else 0 }}" />
+        {% if errors.price_cents %}<p class="field-error">{{ errors.price_cents }}</p>{% endif %}
+      </div>
+      <div class="form-group">
+        <label for="stock">Stock</label>
+        <input type="number" id="stock" name="stock" value="{{ product.stock if product else 0 }}" />
+        {% if errors.stock %}<p class="field-error">{{ errors.stock }}</p>{% endif %}
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="compare_at_price_cents">Compare-at price (cents)</label>
+      <input type="number" id="compare_at_price_cents" name="compare_at_price_cents"
+             value="{{ product.compare_at_price_cents if product and product.compare_at_price_cents is not none else '' }}"
+             placeholder="Leave blank for no discount" />
+      {% if errors.compare_at_price_cents %}<p class="field-error">{{ errors.compare_at_price_cents }}</p>{% endif %}
+      <p class="muted text-sm">Set this higher than the price to show a strikethrough &amp; discount badge in the catalog.</p>
+    </div>
+
+    <div class="form-group">
+      <label for="category">Category</label>
+      <input type="text" id="category" name="category" value="{{ product.category if product else '' }}" />
+    </div>
+
+    <div class="form-group">
+      <label for="image_url">Main image URL</label>
+      <input type="text" id="image_url" name="image_url" placeholder="https://…" value="{{ product.image_url if product else '' }}" />
+      {% if errors.image_url %}<p class="field-error">{{ errors.image_url }}</p>{% endif %}
+      <p class="muted text-sm">
+        Mudbase file uploads require an owner/admin/developer role, which project end-users (sellers included)
+        don&apos;t have — see README "Known limitations". Paste a hosted image URL for now.
+      </p>
+    </div>
+
+    <div class="form-group">
+      <label>Additional photos</label>
+      <div id="gallery-rows">
+        {% for url in (product.gallery_urls if product else []) %}
+          <div class="form-row" style="grid-template-columns: 1fr auto; margin-bottom:0.5rem;">
+            <input type="text" name="gallery_url" placeholder="https://…" value="{{ url }}" />
+            <button type="button" class="btn btn-outline btn-sm" data-remove-row>Remove</button>
+          </div>
+        {% endfor %}
+      </div>
+      <button type="button" class="btn btn-outline btn-sm" id="add-gallery-row">+ Add photo</button>
+      <p class="muted text-sm">Shown as a rotating gallery on the product page — shoppers can also click through photos manually.</p>
+    </div>
+
+    <div class="form-group checkbox-row">
+      <input type="checkbox" id="is_active" name="is_active" {{ "checked" if (product is none or product.is_active) else "" }} />
+      <label for="is_active" style="margin:0; font-weight:400;">Visible in the catalog</label>
+    </div>
+
+    <input type="hidden" name="currency" value="{{ product.currency if product else 'USD' }}" />
+
+    <button type="submit" class="btn btn-primary">Save product</button>
+  </form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    var MAX_ROWS = 8;
+    var container = document.getElementById("gallery-rows");
+    var addButton = document.getElementById("add-gallery-row");
+
+    function rowCount() {
+      return container.querySelectorAll(".form-row").length;
+    }
+
+    function makeRow() {
+      var row = document.createElement("div");
+      row.className = "form-row";
+      row.style.gridTemplateColumns = "1fr auto";
+      row.style.marginBottom = "0.5rem";
+      row.innerHTML =
+        '<input type="text" name="gallery_url" placeholder="https://…" />' +
+        '<button type="button" class="btn btn-outline btn-sm" data-remove-row>Remove</button>';
+      return row;
+    }
+
+    container.addEventListener("click", function (event) {
+      if (event.target.matches("[data-remove-row]")) {
+        event.target.closest(".form-row").remove();
+      }
+    });
+
+    addButton.addEventListener("click", function () {
+      if (rowCount() >= MAX_ROWS) return;
+      container.appendChild(makeRow());
+    });
+  })();
+</script>
+{% endblock %}

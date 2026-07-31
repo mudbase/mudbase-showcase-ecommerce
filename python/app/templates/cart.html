@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Your cart{% endblock %}
+{% block content %}
+  <div class="two-col">
+    <div>
+      <h1>Your cart</h1>
+      {% set items = cart.items if cart else [] %}
+      {% if not items %}
+        <div class="empty-state">Your cart is empty.</div>
+      {% else %}
+        <div>
+          {% for item in items %}
+            <div class="cart-line">
+              {% if item.image_url %}
+                <img class="cart-thumb" src="{{ item.image_url }}" alt="{{ item.name }}" />
+              {% else %}
+                <div class="cart-thumb"></div>
+              {% endif %}
+              <div class="cart-line-info">
+                <p class="name">{{ item.name }}</p>
+                <p class="muted text-sm">{{ item.formatted_unit_price }}</p>
+              </div>
+              <form method="post" action="/cart/update" class="qty-controls">
+                <input type="hidden" name="product_id" value="{{ item.product_id }}" />
+                <button type="submit" name="quantity" value="{{ item.quantity - 1 }}" aria-label="Decrease quantity of {{ item.name }}">&minus;</button>
+                <span>{{ item.quantity }}</span>
+                <button type="submit" name="quantity" value="{{ item.quantity + 1 }}" aria-label="Increase quantity of {{ item.name }}">+</button>
+              </form>
+              <p style="width: 6rem; text-align: right; font-weight: 600;">{{ item.formatted_line_total }}</p>
+              <form method="post" action="/cart/remove">
+                <input type="hidden" name="product_id" value="{{ item.product_id }}" />
+                <button type="submit" class="btn btn-outline btn-sm" aria-label="Remove {{ item.name }} from cart">Remove</button>
+              </form>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <div>
+      <div class="summary-card">
+        <h2>Order summary</h2>
+        <div class="summary-line">
+          <span class="muted">Subtotal</span>
+          <span>{{ cart.formatted_subtotal if cart else "$0.00" }}</span>
+        </div>
+        <div class="summary-total">
+          <span>Total</span>
+          <span>{{ cart.formatted_subtotal if cart else "$0.00" }}</span>
+        </div>
+        {% if cart and cart.items %}
+          <a href="/checkout" class="btn btn-primary btn-block" style="margin-top: 1rem;">Checkout</a>
+        {% else %}
+          <button class="btn btn-primary btn-block" style="margin-top: 1rem;" disabled>Checkout</button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}

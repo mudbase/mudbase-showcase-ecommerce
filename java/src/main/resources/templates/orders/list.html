@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Your orders — Commonwealth Goods</title>
+  <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
+</head>
+<body>
+<div th:replace="~{fragments/layout :: header}"></div>
+
+<main class="container">
+  <h1 class="page-title">Your orders</h1>
+
+  <div th:if="${orders.isEmpty()}" class="empty-state">
+    <p>No orders yet.</p>
+  </div>
+
+  <ul th:unless="${orders.isEmpty()}" class="line-list">
+    <li th:each="order : ${orders}">
+      <a th:href="@{/orders/{id}(id=${order.id})}" style="display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px;text-decoration:none;color:inherit">
+        <div>
+          <p style="margin:0;font-weight:600" th:text="'Order #' + ${order.shortOrderNumber}">Order #ABC123</p>
+          <p class="muted" style="margin:2px 0 0;font-size:0.85rem" th:text="${order.formattedCreatedAt}">Date</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:16px">
+          <span class="tabular" th:text="${order.formattedSubtotal}">$0.00</span>
+          <span class="badge" th:classappend="'badge-' + ${order.orderStatus.badgeVariant}" th:text="${order.orderStatus.label}">Status</span>
+        </div>
+      </a>
+    </li>
+  </ul>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

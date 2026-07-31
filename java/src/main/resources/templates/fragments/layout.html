@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <th:block th:fragment="head-assets">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" th:href="@{/css/app.css}" />
+  </th:block>
+</head>
+<body>
+  <header class="site-header" th:fragment="header">
+    <div class="container">
+      <a class="brand" th:href="@{/}">Commonwealth Goods</a>
+      <nav class="nav">
+        <a th:if="${isSeller}" class="nav-link" th:href="@{/seller}">Seller dashboard</a>
+        <a th:if="${isSignedIn}" class="nav-link" th:href="@{/orders}">Orders</a>
+        <a class="nav-link cart-link" th:href="@{/cart}">
+          Cart
+          <span th:if="${cartItemCount != null and cartItemCount > 0}" class="cart-badge" th:text="${cartItemCount}">0</span>
+        </a>
+        <form th:if="${isSignedIn}" method="post" th:action="@{/logout}" style="display:inline">
+          <button type="submit" class="btn btn-outline btn-sm">Sign out</button>
+        </form>
+        <a th:unless="${isSignedIn}" class="btn btn-sm" th:href="@{/login}">Sign in</a>
+      </nav>
+    </div>
+  </header>
+
+  <footer class="site-footer" th:fragment="footer">
+    <div class="container">
+      <p>Commonwealth Goods — a reference storefront served entirely by <a href="https://www.mudbase.dev">Mudbase</a>. Java/Spring Boot edition.</p>
+    </div>
+  </footer>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title th:text="${isEdit} ? 'Edit product — Commonwealth Goods' : 'Add product — Commonwealth Goods'">Product — Commonwealth Goods</title>
+  <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
+</head>
+<body>
+<div th:replace="~{fragments/layout :: header}"></div>
+
+<main class="container">
+  <h1 class="page-title" th:text="${isEdit} ? 'Edit product' : 'Add product'">Add product</h1>
+
+  <form method="post"
+        th:action="${isEdit} ? @{/seller/products/{id}(id=${productId})} : @{/seller/products}"
+        th:object="${productForm}" novalidate style="max-width:520px">
+
+    <div class="field">
+      <label for="p-name">Name</label>
+      <input id="p-name" type="text" th:field="*{name}" />
+      <p class="error" th:if="${#fields.hasErrors('name')}" th:errors="*{name}">Error</p>
+    </div>
+
+    <div class="field">
+      <label for="p-description">Description</label>
+      <textarea id="p-description" rows="5" th:field="*{description}"></textarea>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="p-price">Price (cents)</label>
+        <input id="p-price" type="number" th:field="*{priceCents}" />
+        <p class="error" th:if="${#fields.hasErrors('priceCents')}" th:errors="*{priceCents}">Error</p>
+      </div>
+      <div class="field">
+        <label for="p-stock">Stock</label>
+        <input id="p-stock" type="number" th:field="*{stock}" />
+        <p class="error" th:if="${#fields.hasErrors('stock')}" th:errors="*{stock}">Error</p>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="p-compareAt">Compare-at price (cents)</label>
+      <input id="p-compareAt" type="number" placeholder="Leave blank for no discount" th:field="*{compareAtPriceCents}" />
+      <p class="error" th:if="${#fields.hasErrors('compareAtPriceCents')}" th:errors="*{compareAtPriceCents}">Error</p>
+      <p class="hint">Set this higher than the price to show a strikethrough &amp; discount badge in the catalog.</p>
+    </div>
+
+    <div class="field">
+      <label for="p-category">Category</label>
+      <input id="p-category" type="text" th:field="*{category}" />
+    </div>
+
+    <div class="field">
+      <label for="p-imageUrl">Main image URL</label>
+      <input id="p-imageUrl" type="text" placeholder="https://…" th:field="*{imageUrl}" />
+      <p class="hint">Mudbase file uploads require an owner/admin/developer system role, which project end-users (sellers included) don't have - see README "Known limitations". Paste a hosted image URL for now.</p>
+    </div>
+
+    <div class="field">
+      <label for="p-gallery">Additional photos (one URL per line)</label>
+      <textarea id="p-gallery" rows="4" th:field="*{galleryUrlsText}" placeholder="https://…"></textarea>
+      <p class="hint">Shown as a rotating gallery on the product page.</p>
+    </div>
+
+    <div class="checkbox-row">
+      <input id="p-active" type="checkbox" th:field="*{active}" />
+      <label for="p-active" style="font-weight:400;margin:0">Visible in the catalog</label>
+    </div>
+
+    <button type="submit" class="btn btn-accent">Save product</button>
+  </form>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>

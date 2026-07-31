@@ -1,0 +1,53 @@
+<h1 class="page-title">Checkout</h1>
+
+<div class="layout-two-col">
+  <form action="/checkout" method="post" class="stack" novalidate>
+    <div class="field">
+      <label for="full_name">Full name</label>
+      <input type="text" id="full_name" name="full_name" autocomplete="name" value="<%= h(@shipping['full_name']) %>" required>
+    </div>
+    <div class="field">
+      <label for="line1">Address</label>
+      <input type="text" id="line1" name="line1" autocomplete="address-line1" value="<%= h(@shipping['line1']) %>" required>
+    </div>
+    <div class="field">
+      <label for="line2">Apartment, suite, etc. (optional)</label>
+      <input type="text" id="line2" name="line2" autocomplete="address-line2" value="<%= h(@shipping['line2']) %>">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="city">City</label>
+        <input type="text" id="city" name="city" autocomplete="address-level2" value="<%= h(@shipping['city']) %>" required>
+      </div>
+      <div class="field">
+        <label for="region">State / region</label>
+        <input type="text" id="region" name="region" autocomplete="address-level1" value="<%= h(@shipping['region']) %>" required>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label for="postal_code">Postal code</label>
+        <input type="text" id="postal_code" name="postal_code" autocomplete="postal-code" value="<%= h(@shipping['postal_code']) %>" required>
+      </div>
+      <div class="field">
+        <label for="country">Country</label>
+        <input type="text" id="country" name="country" autocomplete="country-name" value="<%= h(@shipping['country']) %>" required>
+      </div>
+    </div>
+    <button type="submit" class="btn btn-block">Continue to payment</button>
+  </form>
+
+  <div class="summary-card">
+    <h2 style="margin:0; font-size:1rem;">Order summary</h2>
+    <% @items.each do |item| %>
+      <div class="summary-row">
+        <span><%= h(item[:name]) %> × <%= item[:quantity] %></span>
+        <span><%= format_money(item[:priceCents] * item[:quantity], item[:currency]) %></span>
+      </div>
+    <% end %>
+    <div class="summary-row total">
+      <span>Total</span>
+      <span><%= format_money(@subtotal_cents, @items.first[:currency]) %></span>
+    </div>
+  </div>
+</div>

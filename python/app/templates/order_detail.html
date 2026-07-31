@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Order{% endblock %}
+{% block content %}
+  {% if not order %}
+    <div class="empty-state">This order couldn&apos;t be found.</div>
+  {% else %}
+    <div class="section-head">
+      <div>
+        <h1>Order #{{ order.short_id }}</h1>
+        <p class="muted text-sm">{{ order.created_at | date }}</p>
+      </div>
+      {% include "partials/order_status_badge.html" %}
+    </div>
+
+    {% if order.order_status.value == "cancelled" %}
+      <p class="error-state">This order was cancelled.</p>
+    {% else %}
+      {% set steps = [("pending", "Placed"), ("paid", "Paid"), ("shipped", "Shipped"), ("delivered", "Delivered")] %}
+      {% set effective = "pending" if order.order_status.value == "awaiting_payment" else order.order_status.value %}
+      {% set status_order = ["pending", "paid", "shipped", "delivered"] %}
+      {% set current_index = status_order.index(effective) if effective in status_order else -1 %}
+      <ol class="timeline">
+        {% for status_value, label in steps %}
+          {% set done = loop.index0 <= current_index %}
+          <li>
+            <span class="step {{ 'done' if done else '' }}">{{ "✓" if done else loop.index }}</span>
+            <span class="step-label {{ 'done' if done else '' }}">{{ label }}</span>
+            {% if not loop.last %}<span class="connector {{ 'done' if done else '' }}"></span>{% endif %}
+          </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+
+    <hr style="border:none; border-top:1px solid var(--color-border); margin: 1.5rem 0;" />
+
+    <h2>Items</h2>
+    <table>
+      <thead>
+        <tr><th>Item</th><th class="num">Qty</th><th class="num">Price</th><th class="num">Total</th></tr>
+      </thead>
+      <tbody>
+        {% for item in order.items %}
+          <tr>
+            <td>{{ item.name }}</td>
+            <td class="num">{{ item.quantity }}</td>
+            <td class="num">{{ item.formatted_unit_price }}</td>
+            <td class="num">{{ item.line_total_cents | money(order.currency) }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="summary-total" style="margin-top:0.75rem;">
+      <span>Total</span>
+      <span>{{ order.formatted_subtotal }}</span>
+    </div>
+
+    {% set address = order.shipping_address %}
+    {% if address %}
+      <h2 style="margin-top:2rem;">Shipping to</h2>
+      <p class="muted text-sm">
+        {{ address.full_name }}<br />
+        {{ address.line1 }}{{ ", " ~ address.line2 if address.line2 else "" }}<br />
+        {{ address.city }}, {{ address.region }} {{ address.postal_code }}<br />
+        {{ address.country }}
+      </p>
+    {% endif %}
+
+    {% if order.needs_payment %}
+      <a class="btn btn-primary" href="/checkout/{{ order.payment_link_token }}" style="margin-top:1.5rem;">Complete payment</a>
+    {% endif %}
+  {% endif %}
+{% endblock %}

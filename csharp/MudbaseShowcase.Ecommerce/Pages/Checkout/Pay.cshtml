@@ -1,0 +1,104 @@
+@page "{token}"
+@model MudbaseShowcase.Ecommerce.Pages.Checkout.PayModel
+@{
+    ViewData["Title"] = "Pay for your order";
+    string statusUrl = Url.Page("./Pay", "Status", new { token = Model.Token }) ?? "#";
+}
+
+<div class="d-flex justify-content-center">
+    <div class="w-100" style="max-width: 420px;">
+        <h1 class="h4 fw-semibold text-center mb-4">Pay for your order</h1>
+
+        @if (Model.LoadError is not null && Model.Link is null)
+        {
+            <p class="text-danger">@Model.LoadError</p>
+        }
+        else if (Model.Link is not null)
+        {
+            <div class="border rounded p-4" id="payment-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <span class="fw-medium">Complete your payment</span>
+                    <span id="status-badge" class="badge badge-status-@Model.Link.Status">@Model.Link.Status</span>
+                </div>
+
+                <div id="pending-view" class="@(Model.Link.Status == "pending" ? "" : "d-none")">
+                    <p class="text-muted small mb-3">
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        Waiting for payment — this page updates automatically.
+                    </p>
+                    <dl class="row small mb-0">
+                        <dt class="col-5 text-muted fw-normal">Amount</dt>
+                        <dd class="col-7 text-end" id="amount-value">@Model.Link.Amount @Model.Link.Currency</dd>
+                        <dt class="col-5 text-muted fw-normal">Network</dt>
+                        <dd class="col-7 text-end" id="network-value">@Model.Link.Network</dd>
+                        <dt class="col-5 text-muted fw-normal">Send to</dt>
+                        <dd class="col-7 text-end text-break" style="font-family: monospace; font-size: 0.75rem;" id="address-value">@Model.Link.Address</dd>
+                    </dl>
+                </div>
+
+                <div id="paid-view" class="text-success @(Model.Link.Status == "paid" ? "" : "d-none")">
+                    Payment received — thank you!
+                </div>
+
+                <div id="closed-view" class="text-danger @(Model.Link.Status is "expired" or "cancelled" ? "" : "d-none")">
+                    This payment link is no longer active.
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    @if (Model.Link is not null && Model.Link.Status == "pending")
+    {
+        <script>
+            (function () {
+                var statusUrl = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(statusUrl));
+                var intervalMs = 4000;
+                var timer = null;
+
+                function applyStatus(data) {
+                    var badge = document.getElementById('status-badge');
+                    badge.textContent = data.status;
+                    badge.className = 'badge badge-status-' + data.status;
+
+                    var pendingView = document.getElementById('pending-view');
+                    var paidView = document.getElementById('paid-view');
+                    var closedView = document.getElementById('closed-view');
+
+                    pendingView.classList.add('d-none');
+                    paidView.classList.add('d-none');
+                    closedView.classList.add('d-none');
+
+                    if (data.status === 'paid') {
+                        paidView.classList.remove('d-none');
+                    } else if (data.status === 'expired' || data.status === 'cancelled') {
+                        closedView.classList.remove('d-none');
+                    } else {
+                        pendingView.classList.remove('d-none');
+                        document.getElementById('amount-value').textContent = data.amount + ' ' + data.currency;
+                        document.getElementById('network-value').textContent = data.network;
+                        document.getElementById('address-value').textContent = data.address;
+                    }
+                }
+
+                function tick() {
+                    fetch(statusUrl, { headers: { 'Accept': 'application/json' } })
+                        .then(function (res) { return res.ok ? res.json() : null; })
+                        .then(function (data) {
+                            if (!data || !data.found) return;
+                            applyStatus(data);
+                            if (data.status === 'pending') {
+                                timer = setTimeout(tick, intervalMs);
+                            }
+                        })
+                        .catch(function () {
+                            timer = setTimeout(tick, intervalMs);
+                        });
+                }
+
+                timer = setTimeout(tick, intervalMs);
+            })();
+        </script>
+    }
+}

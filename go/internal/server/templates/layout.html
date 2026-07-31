@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{if .Title}}{{.Title}} · {{end}}Commonwealth Goods</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="brand" href="/">Commonwealth Goods</a>
+      <nav class="nav">
+        {{if .IsSeller}}<a href="/seller">Seller dashboard</a>{{end}}
+        {{if .IsSignedIn}}<a href="/orders">Orders</a>{{end}}
+        <a href="/cart" class="cart-link">Cart{{if gt .CartCount 0}} <span class="badge">{{.CartCount}}</span>{{end}}</a>
+        {{if .IsSignedIn}}
+          <form method="post" action="/logout" class="inline-form">
+            <button type="submit" class="link-button">Sign out</button>
+          </form>
+        {{else}}
+          <a href="/login" class="button button-sm">Sign in</a>
+        {{end}}
+      </nav>
+    </div>
+  </header>
+
+  <main class="container page">
+    {{if .FlashError}}<p class="flash flash-error" role="alert">{{.FlashError}}</p>{{end}}
+    {{if .FlashSuccess}}<p class="flash flash-success" role="status">{{.FlashSuccess}}</p>{{end}}
+    {{template "content" .}}
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Every product, order, cart, and payment on this page is served by a real Mudbase project — no custom backend, reimplemented in Go against the official Mudbase Go SDK.</p>
+    </div>
+  </footer>
+</body>
+</html>

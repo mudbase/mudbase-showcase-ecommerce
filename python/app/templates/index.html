@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Commonwealth Goods{% endblock %}
+{% block content %}
+  <div class="section-head" style="flex-direction: column; align-items: flex-start; gap: 0.5rem;">
+    <h1>Commonwealth Goods</h1>
+    <p class="muted" style="max-width: 42rem;">
+      Every product, order, cart, and payment on this page is served by a real Mudbase project,
+      through the real Mudbase Python SDK — no hand-rolled backend.
+    </p>
+  </div>
+
+  {% if load_error %}
+    <p class="error-state">{{ load_error }}</p>
+  {% endif %}
+
+  {% if categories %}
+    <div class="filters" role="group" aria-label="Filter by category">
+      <a class="filter-pill {{ 'active' if not selected_category else '' }}" href="/">All</a>
+      {% for category in categories %}
+        <a class="filter-pill {{ 'active' if selected_category == category else '' }}" href="/?category={{ category | urlencode }}">
+          {{ category }}
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if not products %}
+    <div class="empty-state">
+      {% if selected_category %}
+        No products in &ldquo;{{ selected_category }}&rdquo; yet.
+      {% else %}
+        No products listed yet — check back soon.
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="grid">
+      {% for product in products %}
+        <a class="card product-card" href="/products/{{ product.slug }}">
+          <div class="product-image-wrap">
+            {% if product.image_url %}
+              <img class="product-image" src="{{ product.image_url }}" alt="{{ product.name }}" />
+            {% else %}
+              <div class="product-image-empty">No image</div>
+            {% endif %}
+            <div class="product-badges">
+              {% if not product.in_stock %}<span class="badge badge-secondary">Out of stock</span>{% endif %}
+              {% if product.discount_percent %}<span class="badge">{{ product.discount_percent }}% off</span>{% endif %}
+            </div>
+          </div>
+          <div class="product-card-body">
+            <p class="product-eyebrow">{{ product.category or "General" }}</p>
+            <h3 class="product-name">{{ product.name }}</h3>
+          </div>
+          <div class="price-row">
+            <span class="price">{{ product.formatted_price }}</span>
+            {% if product.formatted_compare_at_price %}
+              <span class="price-compare">{{ product.formatted_compare_at_price }}</span>
+            {% endif %}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endblock %}

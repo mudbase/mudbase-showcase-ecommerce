@@ -1,0 +1,103 @@
+@page "{id}"
+@model MudbaseShowcase.Ecommerce.Pages.Orders.DetailModel
+@using MudbaseShowcase.Ecommerce.Services
+@{
+    ViewData["Title"] = "Order detail";
+}
+
+@if (Model.IsNotFound || Model.LoadError is not null || Model.Order is null)
+{
+    <div class="text-center py-5">
+        <p class="text-muted">@(Model.LoadError ?? "This order couldn't be found.")</p>
+    </div>
+}
+else
+{
+    OrderDocument order = Model.Order;
+    <div class="mx-auto" style="max-width: 640px;">
+        <div class="d-flex justify-content-between align-items-start mb-4">
+            <div>
+                <h1 class="h4 fw-semibold mb-0">Order #@MoneyFormatter.ShortId(order.Id)</h1>
+                <p class="text-muted small mb-0">@MoneyFormatter.FormatDate(order.CreatedAt)</p>
+            </div>
+            <span class="badge badge-status-@order.OrderStatus">@OrderStatus.Label(order.OrderStatus)</span>
+        </div>
+
+        @{
+            string[] steps = { OrderStatus.Pending, OrderStatus.Paid, OrderStatus.Shipped, OrderStatus.Delivered };
+            string effective = order.OrderStatus == OrderStatus.AwaitingPayment ? OrderStatus.Pending : order.OrderStatus;
+            int currentIndex = Array.IndexOf(steps, effective);
+        }
+        @if (order.OrderStatus == OrderStatus.Cancelled)
+        {
+            <p class="text-danger mb-4">This order was cancelled.</p>
+        }
+        else
+        {
+            <ol class="d-flex list-unstyled mb-4">
+                @for (int i = 0; i < steps.Length; i++)
+                {
+                    bool done = i <= currentIndex;
+                    <li class="d-flex align-items-center flex-fill">
+                        <span class="rounded-circle border d-flex align-items-center justify-content-center flex-shrink-0 @(done ? "timeline-step done border-brand" : "text-muted")"
+                              style="width:28px;height:28px;font-size:0.75rem;">
+                            @(done ? "✓" : (i + 1).ToString())
+                        </span>
+                        <span class="small ms-2 @(done ? "timeline-step done" : "text-muted")">@OrderStatus.Label(steps[i])</span>
+                        @if (i < steps.Length - 1)
+                        {
+                            <span class="flex-fill mx-2" style="height:1px;background:@(done ? "var(--brand)" : "#dee2e6");"></span>
+                        }
+                    </li>
+                }
+            </ol>
+        }
+
+        <hr />
+
+        <h2 class="h6 fw-medium mb-3">Items</h2>
+        <div class="table-responsive">
+            <table class="table table-borderless">
+                <thead>
+                    <tr class="text-muted small">
+                        <th class="fw-normal">Item</th>
+                        <th class="fw-normal text-end">Qty</th>
+                        <th class="fw-normal text-end">Price</th>
+                        <th class="fw-normal text-end">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (OrderLineItem item in Model.Items)
+                    {
+                        <tr class="border-bottom">
+                            <td>@item.Name</td>
+                            <td class="text-end">@item.Quantity</td>
+                            <td class="text-end">@MoneyFormatter.Format(item.PriceCents, order.Currency)</td>
+                            <td class="text-end">@MoneyFormatter.Format(item.PriceCents * item.Quantity, order.Currency)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="d-flex justify-content-between fw-medium mb-4">
+            <span>Total</span>
+            <span>@MoneyFormatter.Format(order.SubtotalCents, order.Currency)</span>
+        </div>
+
+        @if (Model.Address is { } address)
+        {
+            <h2 class="h6 fw-medium mb-2">Shipping to</h2>
+            <p class="text-muted small mb-4">
+                @address.FullName<br />
+                @address.Line1@(string.IsNullOrWhiteSpace(address.Line2) ? "" : $", {address.Line2}")<br />
+                @address.City, @address.Region @address.PostalCode<br />
+                @address.Country
+            </p>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(order.PaymentLinkToken) && order.PaymentStatus != OrderPaymentStatus.Paid)
+        {
+            <a class="btn btn-brand" asp-page="/Checkout/Pay" asp-route-token="@order.PaymentLinkToken">Complete payment</a>
+        }
+    </div>
+}

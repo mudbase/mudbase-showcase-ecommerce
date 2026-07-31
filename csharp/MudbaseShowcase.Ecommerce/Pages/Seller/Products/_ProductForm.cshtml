@@ -1,0 +1,59 @@
+@model MudbaseShowcase.Ecommerce.Pages.Seller.Products.ProductFormInput
+
+<div class="mb-3">
+    <label asp-for="Name" class="form-label">Name</label>
+    <input asp-for="Name" class="form-control" />
+    <span asp-validation-for="Name" class="text-danger small"></span>
+</div>
+<div class="mb-3">
+    <label asp-for="Description" class="form-label">Description</label>
+    <textarea asp-for="Description" rows="5" class="form-control"></textarea>
+</div>
+<div class="row g-2 mb-3">
+    <div class="col">
+        <label asp-for="PriceCents" class="form-label">Price (cents)</label>
+        <input asp-for="PriceCents" type="number" class="form-control" />
+        <span asp-validation-for="PriceCents" class="text-danger small"></span>
+    </div>
+    <div class="col">
+        <label asp-for="Stock" class="form-label">Stock</label>
+        <input asp-for="Stock" type="number" class="form-control" />
+        <span asp-validation-for="Stock" class="text-danger small"></span>
+    </div>
+</div>
+<div class="mb-3">
+    <label asp-for="CompareAtPriceCents" class="form-label">Compare-at price (cents)</label>
+    <input asp-for="CompareAtPriceCents" type="number" placeholder="Leave blank for no discount" class="form-control" />
+    <span asp-validation-for="CompareAtPriceCents" class="text-danger small"></span>
+    <p class="form-text">Set this higher than the price to show a strikethrough &amp; discount badge in the catalog.</p>
+</div>
+<div class="mb-3">
+    <label asp-for="Category" class="form-label">Category</label>
+    <input asp-for="Category" class="form-control" />
+</div>
+<div class="mb-3">
+    <label asp-for="ImageUrl" class="form-label">Main image URL</label>
+    <input asp-for="ImageUrl" placeholder="https://…" class="form-control" />
+    <span asp-validation-for="ImageUrl" class="text-danger small"></span>
+    <p class="form-text">
+        Mudbase file uploads require an owner/admin/developer role, which project end-users (sellers included)
+        don't have — see README "Known limitations". Paste a hosted image URL for now.
+    </p>
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Additional photos</label>
+    @for (int i = 0; i < Model.GalleryUrls.Count; i++)
+    {
+        <div class="mb-2">
+            <input asp-for="GalleryUrls[i]" placeholder="https://…" class="form-control" />
+            <span asp-validation-for="GalleryUrls[i]" class="text-danger small"></span>
+        </div>
+    }
+    <p class="form-text">Shown as a rotating gallery on the product page. Leave any of these blank to skip them.</p>
+</div>
+
+<div class="mb-4 form-check">
+    <input asp-for="IsActive" class="form-check-input" />
+    <label asp-for="IsActive" class="form-check-label">Visible in the catalog</label>
+</div>

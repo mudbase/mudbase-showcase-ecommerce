@@ -1,0 +1,77 @@
+:root {
+    --brand: #7c3aed;
+    --brand-dark: #5b21b6;
+}
+
+body {
+    background-color: #faf9fc;
+}
+
+.navbar-brand {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+
+.btn-brand {
+    background-color: var(--brand);
+    border-color: var(--brand);
+    color: #fff;
+}
+
+.btn-brand:hover,
+.btn-brand:focus {
+    background-color: var(--brand-dark);
+    border-color: var(--brand-dark);
+    color: #fff;
+}
+
+.product-card img,
+.product-card .no-image {
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    width: 100%;
+    background-color: #f1f0f4;
+}
+
+.no-image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #9ca3af;
+    font-size: 0.85rem;
+}
+
+.cart-badge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    font-size: 0.65rem;
+}
+
+.timeline-step.done {
+    color: var(--brand);
+    font-weight: 600;
+}
+
+.border-brand {
+    border-color: var(--brand) !important;
+}
+
+.badge-status-paid,
+.badge-status-delivered {
+    background-color: #16a34a;
+}
+
+.badge-status-pending,
+.badge-status-awaiting_payment {
+    background-color: #d97706;
+}
+
+.badge-status-cancelled,
+.badge-status-expired {
+    background-color: #dc2626;
+}
+
+.badge-status-shipped {
+    background-color: #6b7280;
+}

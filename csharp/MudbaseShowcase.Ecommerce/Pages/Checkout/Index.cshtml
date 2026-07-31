@@ -1,0 +1,155 @@
+@page
+@model MudbaseShowcase.Ecommerce.Pages.Checkout.IndexModel
+@using MudbaseShowcase.Ecommerce.Services
+@{
+    ViewData["Title"] = "Checkout";
+}
+
+@if (Model.Items.Count == 0)
+{
+    <div class="text-center py-5">
+        <p class="text-muted">Your cart is empty — add something before checking out.</p>
+    </div>
+}
+else
+{
+    <div class="row g-5">
+        <div class="col-lg-8">
+            <h1 class="h4 fw-semibold mb-4">Checkout</h1>
+
+            @if (Model.ErrorMessage is not null)
+            {
+                <p class="text-danger" role="alert">@Model.ErrorMessage</p>
+            }
+
+            @if (!Model.IsCustomer)
+            {
+                <p class="text-muted small">
+                    Sign in or create an account to place this order — your cart carries over, and you'll be able
+                    to track it from Orders afterward.
+                </p>
+
+                <ul class="nav nav-tabs mb-3" id="authTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="register-tab" data-bs-toggle="tab" data-bs-target="#register-pane" type="button">Create account</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="login-tab" data-bs-toggle="tab" data-bs-target="#login-pane" type="button">Sign in</button>
+                    </li>
+                </ul>
+                <div class="tab-content">
+                    <div class="tab-pane fade show active" id="register-pane">
+                        <form method="post" asp-page-handler="Register">
+                            <div class="row g-2 mb-3">
+                                <div class="col">
+                                    <label class="form-label">First name</label>
+                                    <input asp-for="RegisterForm.FirstName" class="form-control" />
+                                    <span asp-validation-for="RegisterForm.FirstName" class="text-danger small"></span>
+                                </div>
+                                <div class="col">
+                                    <label class="form-label">Last name</label>
+                                    <input asp-for="RegisterForm.LastName" class="form-control" />
+                                    <span asp-validation-for="RegisterForm.LastName" class="text-danger small"></span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input asp-for="RegisterForm.Email" type="email" class="form-control" />
+                                <span asp-validation-for="RegisterForm.Email" class="text-danger small"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input asp-for="RegisterForm.Password" type="password" class="form-control" />
+                                <span asp-validation-for="RegisterForm.Password" class="text-danger small"></span>
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input asp-for="RegisterForm.AgreedToTerms" class="form-check-input" />
+                                <label asp-for="RegisterForm.AgreedToTerms" class="form-check-label small">I agree to the Terms of Service and Privacy Policy.</label>
+                                <div><span asp-validation-for="RegisterForm.AgreedToTerms" class="text-danger small"></span></div>
+                            </div>
+                            <button type="submit" class="btn btn-brand">Create account</button>
+                        </form>
+                    </div>
+                    <div class="tab-pane fade" id="login-pane">
+                        <form method="post" asp-page-handler="Login">
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input asp-for="LoginForm.Email" type="email" class="form-control" />
+                                <span asp-validation-for="LoginForm.Email" class="text-danger small"></span>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input asp-for="LoginForm.Password" type="password" class="form-control" />
+                                <span asp-validation-for="LoginForm.Password" class="text-danger small"></span>
+                            </div>
+                            <button type="submit" class="btn btn-brand">Sign in</button>
+                        </form>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="PlaceOrder">
+                    <div class="mb-3">
+                        <label class="form-label">Full name</label>
+                        <input asp-for="Shipping.FullName" autocomplete="name" class="form-control" />
+                        <span asp-validation-for="Shipping.FullName" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Address</label>
+                        <input asp-for="Shipping.Line1" autocomplete="address-line1" class="form-control" />
+                        <span asp-validation-for="Shipping.Line1" class="text-danger small"></span>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Apartment, suite, etc. (optional)</label>
+                        <input asp-for="Shipping.Line2" autocomplete="address-line2" class="form-control" />
+                    </div>
+                    <div class="row g-2 mb-3">
+                        <div class="col">
+                            <label class="form-label">City</label>
+                            <input asp-for="Shipping.City" autocomplete="address-level2" class="form-control" />
+                            <span asp-validation-for="Shipping.City" class="text-danger small"></span>
+                        </div>
+                        <div class="col">
+                            <label class="form-label">State / region</label>
+                            <input asp-for="Shipping.Region" autocomplete="address-level1" class="form-control" />
+                            <span asp-validation-for="Shipping.Region" class="text-danger small"></span>
+                        </div>
+                    </div>
+                    <div class="row g-2 mb-4">
+                        <div class="col">
+                            <label class="form-label">Postal code</label>
+                            <input asp-for="Shipping.PostalCode" autocomplete="postal-code" class="form-control" />
+                            <span asp-validation-for="Shipping.PostalCode" class="text-danger small"></span>
+                        </div>
+                        <div class="col">
+                            <label class="form-label">Country</label>
+                            <input asp-for="Shipping.Country" autocomplete="country-name" class="form-control" />
+                            <span asp-validation-for="Shipping.Country" class="text-danger small"></span>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-brand w-100">Continue to payment</button>
+                </form>
+            }
+        </div>
+        <div class="col-lg-4">
+            <div class="border rounded p-4">
+                <h2 class="h6 fw-medium mb-3">Order summary</h2>
+                <ul class="list-unstyled small mb-3">
+                    @foreach (CartItem item in Model.Items)
+                    {
+                        <li class="d-flex justify-content-between mb-1">
+                            <span class="text-muted">@item.Name × @item.Quantity</span>
+                            <span>@MoneyFormatter.Format(item.LineTotalCents, item.Currency)</span>
+                        </li>
+                    }
+                </ul>
+                <hr />
+                <div class="d-flex justify-content-between fw-medium">
+                    <span>Total</span>
+                    <span>@MoneyFormatter.Format(Model.SubtotalCents, Model.Items.Count > 0 ? Model.Items[0].Currency : "USD")</span>
+                </div>
+            </div>
+        </div>
+    </div>
+}

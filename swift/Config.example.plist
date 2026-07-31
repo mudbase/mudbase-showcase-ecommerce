@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- A project/collection ID is not a secret — see README "Configuration". -->
+	<key>MudbaseProjectId</key>
+	<string></string>
+	<key>MudbaseBaseURL</key>
+	<string>https://cloud.mudbase.dev</string>
+	<key>ProductsCollectionId</key>
+	<string></string>
+	<key>OrdersCollectionId</key>
+	<string></string>
+	<key>CartsCollectionId</key>
+	<string></string>
+	<!-- The already-deployed web app's Payment Link proxy — see README "Payments". -->
+	<key>PayLinkProxyBaseURL</key>
+	<string>https://mudbase-showcase-ecommerce.vercel.app</string>
+</dict>
+</plist>

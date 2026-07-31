@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <title>Pay for your order — Commonwealth Goods</title>
+  <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
+</head>
+<body>
+<div th:replace="~{fragments/layout :: header}"></div>
+
+<main class="container" style="display:flex;justify-content:center">
+  <div style="width:100%;max-width:440px">
+    <h1 class="page-title" style="text-align:center">Pay for your order</h1>
+
+    <div id="paymentPanel" class="card card-pad payment-panel">
+      <div id="loadingState" style="height:180px;border-radius:8px;background:#eee9df"></div>
+      <div id="errorState" style="display:none" class="alert alert-error"></div>
+
+      <div id="readyState" style="display:none">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <span style="font-weight:600">Complete your payment</span>
+          <span id="statusBadge" class="badge">Pending</span>
+        </div>
+
+        <div id="pendingBlock">
+          <p class="muted" style="font-size:0.88rem;display:flex;align-items:center;gap:8px;margin-bottom:16px">
+            <span class="pulse"></span> Waiting for payment — this page updates automatically.
+          </p>
+          <dl>
+            <div class="row"><dt>Amount</dt><dd id="amountValue" class="tabular"></dd></div>
+            <div class="row"><dt>Network</dt><dd id="networkValue"></dd></div>
+            <div class="row"><dt>Send to</dt><dd id="addressValue" class="payment-address"></dd></div>
+          </dl>
+        </div>
+
+        <div id="paidBlock" style="display:none;color:var(--color-success-ink)">
+          Payment received — thank you!
+        </div>
+
+        <div id="terminalBlock" style="display:none;color:var(--color-destructive-ink)">
+          This payment link is no longer active.
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+
+<script th:inline="javascript">
+  const token = /*[[${token}]]*/ '';
+  const statusUrl = '/checkout/' + encodeURIComponent(token) + '/status';
+  const POLL_INTERVAL_MS = 4000;
+
+  function setBadge(status) {
+    const badge = document.getElementById('statusBadge');
+    badge.className = 'badge';
+    if (status === 'paid') { badge.classList.add('badge-success'); badge.textContent = 'Paid'; }
+    else if (status === 'expired' || status === 'cancelled') { badge.classList.add('badge-destructive'); badge.textContent = status; }
+    else { badge.classList.add('badge-warning'); badge.textContent = 'Pending'; }
+  }
+
+  function render(link) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('errorState').style.display = 'none';
+    document.getElementById('readyState').style.display = 'block';
+    setBadge(link.status);
+    document.getElementById('pendingBlock').style.display = link.status === 'paid' || link.status === 'expired' || link.status === 'cancelled' ? 'none' : 'block';
+    document.getElementById('paidBlock').style.display = link.status === 'paid' ? 'block' : 'none';
+    document.getElementById('terminalBlock').style.display = (link.status === 'expired' || link.status === 'cancelled') ? 'block' : 'none';
+    document.getElementById('amountValue').textContent = (link.amount || '') + ' ' + (link.currency || '');
+    document.getElementById('networkValue').textContent = link.network || '';
+    document.getElementById('addressValue').textContent = link.address || '';
+  }
+
+  function renderError(message) {
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('readyState').style.display = 'none';
+    const errorState = document.getElementById('errorState');
+    errorState.style.display = 'block';
+    errorState.textContent = message;
+  }
+
+  async function tick() {
+    try {
+      const res = await fetch(statusUrl, { headers: { Accept: 'application/json' } });
+      const body = await res.json();
+      if (body.error) {
+        renderError(body.error);
+        setTimeout(tick, POLL_INTERVAL_MS);
+        return;
+      }
+      render(body);
+      if (body.status === 'pending' || !body.status) {
+        setTimeout(tick, POLL_INTERVAL_MS);
+      }
+    } catch (e) {
+      renderError("Couldn't check payment status");
+      setTimeout(tick, POLL_INTERVAL_MS);
+    }
+  }
+
+  tick();
+</script>
+</body>
+</html>

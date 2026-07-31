@@ -1,0 +1,51 @@
+<h1 class="page-title">Your cart</h1>
+
+<% if @items.empty? %>
+  <div class="empty-state">
+    <p>Your cart is empty.</p>
+    <p><a href="/">Browse the catalog</a></p>
+  </div>
+<% else %>
+  <div class="layout-two-col">
+    <ul class="cart-list">
+      <% @items.each do |item| %>
+        <li>
+          <div class="thumb">
+            <% if item[:imageUrl] %><img src="<%= h(item[:imageUrl]) %>" alt=""><% end %>
+          </div>
+          <div class="info">
+            <p class="name"><%= h(item[:name]) %></p>
+            <p class="unit-price"><%= format_money(item[:priceCents], item[:currency]) %></p>
+          </div>
+
+          <form action="/cart/update" method="post" class="stepper">
+            <input type="hidden" name="product_id" value="<%= item[:productId] %>">
+            <button type="submit" name="quantity" value="<%= item[:quantity] - 1 %>" aria-label="Decrease quantity of <%= h(item[:name]) %>">−</button>
+            <input type="number" value="<%= item[:quantity] %>" readonly aria-label="Quantity">
+            <button type="submit" name="quantity" value="<%= item[:quantity] + 1 %>" aria-label="Increase quantity of <%= h(item[:name]) %>">+</button>
+          </form>
+
+          <p class="cart-line-total"><%= format_money(item[:priceCents] * item[:quantity], item[:currency]) %></p>
+
+          <form action="/cart/remove" method="post" class="inline-form">
+            <input type="hidden" name="product_id" value="<%= item[:productId] %>">
+            <button type="submit" class="link-button" aria-label="Remove <%= h(item[:name]) %> from cart">Remove</button>
+          </form>
+        </li>
+      <% end %>
+    </ul>
+
+    <div class="summary-card">
+      <h2 style="margin:0; font-size:1rem;">Order summary</h2>
+      <div class="summary-row">
+        <span>Subtotal</span>
+        <span><%= format_money(@subtotal_cents, @items.first[:currency]) %></span>
+      </div>
+      <div class="summary-row total">
+        <span>Total</span>
+        <span><%= format_money(@subtotal_cents, @items.first[:currency]) %></span>
+      </div>
+      <a href="/checkout" class="btn btn-block">Checkout</a>
+    </div>
+  </div>
+<% end %>

@@ -1,0 +1,56 @@
+{{define "content"}}
+{{if not .Found}}
+<div class="empty-state">
+  <p>This product isn't available anymore.</p>
+</div>
+{{else}}
+<div class="product-detail">
+  <div>
+    <div class="gallery-main" id="gallery-main">
+      {{if .Product.Images}}
+        <img id="gallery-main-img" src="{{index .Product.Images 0}}" alt="{{.Product.Name}}">
+      {{else}}
+        <div class="empty-state" style="border:none">No image</div>
+      {{end}}
+    </div>
+    {{if gt (len .Product.Images) 1}}
+    <div class="gallery-thumbs">
+      {{range .Product.Images}}
+      <img src="{{.}}" alt="{{$.Product.Name}} photo" onclick="document.getElementById('gallery-main-img').src=this.src">
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+
+  <div>
+    <p>
+      {{if .Product.Category}}<span class="badge-pill badge-secondary">{{.Product.Category}}</span>{{end}}
+      {{if .Product.DiscountPercent}}<span class="badge-pill badge-warning">{{.Product.DiscountPercent}}% off</span>{{end}}
+    </p>
+    <h1>{{.Product.Name}}</h1>
+    <div class="price-row">
+      <span class="current">{{.Product.PriceLabel}}</span>
+      {{if .Product.DiscountPercent}}<span class="compare">{{.Product.CompareAtLabel}}</span>{{end}}
+    </div>
+
+    {{if .Product.Description}}<p class="muted" style="white-space:pre-line">{{.Product.Description}}</p>{{end}}
+
+    <form method="post" action="/cart/add" class="stacked" style="max-width:20rem">
+      <input type="hidden" name="productId" value="{{.Product.ID}}">
+      <input type="hidden" name="slug" value="{{.Product.Slug}}">
+      <div class="field">
+        <label for="quantity">Quantity</label>
+        <input type="number" id="quantity" name="quantity" value="1" min="1" max="{{.Product.Stock}}" {{if .Product.OutOfStock}}disabled{{end}}>
+      </div>
+      <button type="submit" class="button" {{if .Product.OutOfStock}}disabled{{end}}>
+        {{if .Product.OutOfStock}}Out of stock{{else}}Add to cart{{end}}
+      </button>
+    </form>
+
+    <p class="muted">
+      {{if gt .Product.Stock 0}}{{.Product.Stock}} in stock{{else}}Currently out of stock{{end}}
+    </p>
+  </div>
+</div>
+{{end}}
+{{end}}

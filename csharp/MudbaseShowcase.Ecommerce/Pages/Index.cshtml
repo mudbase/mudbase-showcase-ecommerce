@@ -1,0 +1,85 @@
+@page
+@model MudbaseShowcase.Ecommerce.Pages.IndexModel
+@{
+    ViewData["Title"] = "Shop";
+}
+
+<div class="mb-4">
+    <h1 class="h3 fw-semibold">Commonwealth Goods</h1>
+    <p class="text-muted">
+        Every product, order, cart, and payment on this page is served by a real Mudbase project — no custom
+        backend. Browse as a guest; your cart follows you the moment you sign in.
+    </p>
+</div>
+
+@if (Model.LoadError is not null)
+{
+    <p class="text-danger">@Model.LoadError</p>
+}
+else
+{
+    @if (Model.Categories.Count > 0)
+    {
+        <div class="d-flex flex-wrap gap-2 mb-4" role="group" aria-label="Filter by category">
+            <a class="btn btn-sm @(Model.Category is null ? "btn-brand" : "btn-outline-secondary")" asp-page="/Index">All</a>
+            @foreach (string category in Model.Categories)
+            {
+                <a class="btn btn-sm @(Model.Category == category ? "btn-brand" : "btn-outline-secondary")"
+                   asp-page="/Index" asp-route-category="@category">@category</a>
+            }
+        </div>
+    }
+
+    @if (Model.Products.Count == 0)
+    {
+        <div class="border border-dashed rounded p-5 text-center text-muted">
+            @(Model.Category is not null ? $"No products in \"{Model.Category}\" yet." : "No products listed yet — check back soon.")
+        </div>
+    }
+    else
+    {
+        <div class="row row-cols-2 row-cols-sm-3 row-cols-lg-4 g-4">
+            @foreach (ProductDocument product in Model.Products)
+            {
+                int? discount = product.DiscountPercent();
+                <div class="col">
+                    <a class="text-decoration-none text-reset" asp-page="/Products/Detail" asp-route-slug="@product.Slug">
+                        <div class="card h-100 product-card">
+                            <div class="position-relative">
+                                @if (!string.IsNullOrWhiteSpace(product.ImageUrl))
+                                {
+                                    <img src="@product.ImageUrl" alt="@product.Name" class="card-img-top" />
+                                }
+                                else
+                                {
+                                    <div class="no-image">No image</div>
+                                }
+                                <div class="position-absolute top-0 start-0 m-2 d-flex gap-1">
+                                    @if (product.Stock <= 0)
+                                    {
+                                        <span class="badge bg-secondary">Out of stock</span>
+                                    }
+                                    @if (discount is not null)
+                                    {
+                                        <span class="badge bg-brand text-bg-dark">@discount% off</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <p class="text-uppercase text-muted small mb-1">@(product.Category ?? "General")</p>
+                                <h3 class="h6 mb-2 text-truncate">@product.Name</h3>
+                                <div class="d-flex align-items-baseline gap-2">
+                                    <span class="fw-semibold">@MoneyFormatter.Format(product.PriceCents, product.Currency)</span>
+                                    @if (discount is not null)
+                                    {
+                                        <span class="text-muted text-decoration-line-through small">@MoneyFormatter.Format(product.CompareAtPriceCents!.Value, product.Currency)</span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </a>
+                </div>
+            }
+        </div>
+    }
+}

@@ -1,0 +1,52 @@
+<div class="product-detail">
+  <div>
+    <div class="gallery-main">
+      <% if @gallery.any? %>
+        <img src="<%= h(@gallery.first) %>" alt="<%= h(@product[:name]) %>">
+      <% else %>
+        <span class="no-image">No image</span>
+      <% end %>
+    </div>
+    <% if @gallery.size > 1 %>
+      <div class="gallery-thumbs">
+        <% @gallery.each do |url| %>
+          <img src="<%= h(url) %>" alt="">
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+
+  <div>
+    <% if @product[:category] && !@product[:category].to_s.empty? %>
+      <span class="badge-pill"><%= h(@product[:category]) %></span>
+    <% end %>
+    <% if @discount_percent %><span class="badge-pill"><%= @discount_percent %>% off</span><% end %>
+
+    <h1 class="page-title"><%= h(@product[:name]) %></h1>
+
+    <div class="price-row" style="margin-bottom:1.5rem;">
+      <span class="price" style="font-size:1.4rem;"><%= format_money(@product[:priceCents], @product[:currency]) %></span>
+      <% if @discount_percent %>
+        <span class="price-compare"><%= format_money(@product[:compareAtPriceCents], @product[:currency]) %></span>
+      <% end %>
+    </div>
+
+    <% if @product[:description] && !@product[:description].to_s.empty? %>
+      <p style="white-space:pre-line; color:var(--muted);"><%= h(@product[:description]) %></p>
+    <% end %>
+
+    <form action="/cart/add" method="post" class="quantity-row">
+      <input type="hidden" name="product_id" value="<%= @product[:_id] %>">
+      <div class="stepper">
+        <input type="number" name="quantity" value="1" min="1" max="<%= [@product[:stock].to_i, 1].max %>" aria-label="Quantity">
+      </div>
+      <button type="submit" class="btn" <%= "disabled" if @product[:stock].to_i <= 0 %>>
+        <%= @product[:stock].to_i <= 0 ? "Out of stock" : "Add to cart" %>
+      </button>
+    </form>
+
+    <p class="field-hint">
+      <%= @product[:stock].to_i > 0 ? "#{@product[:stock]} in stock" : "Currently out of stock" %>
+    </p>
+  </div>
+</div>

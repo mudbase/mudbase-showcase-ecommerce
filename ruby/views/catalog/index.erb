@@ -1,0 +1,44 @@
+<h1 class="page-title">Commonwealth Goods</h1>
+<p class="page-subtitle">Every product, order, cart, and payment on this page is served by a real Mudbase project - no custom backend.</p>
+
+<% if @categories.any? %>
+  <div class="category-filter" role="group" aria-label="Filter by category">
+    <a href="/" class="<%= 'active' if @selected_category.nil? %>">All</a>
+    <% @categories.each do |category| %>
+      <a href="/?category=<%= URI.encode_www_form_component(category) %>" class="<%= 'active' if @selected_category == category %>"><%= h(category) %></a>
+    <% end %>
+  </div>
+<% end %>
+
+<% if @products.empty? %>
+  <div class="empty-state">
+    <p>No products to show yet.</p>
+  </div>
+<% else %>
+  <div class="product-grid">
+    <% @products.each do |product| %>
+      <a class="product-card" href="/products/<%= product[:slug] %>">
+        <div class="thumb">
+          <% if product[:imageUrl] %>
+            <img src="<%= h(product[:imageUrl]) %>" alt="<%= h(product[:name]) %>">
+          <% else %>
+            <span class="no-image">No image</span>
+          <% end %>
+        </div>
+        <div class="body">
+          <p class="category"><%= h(product[:category].to_s.empty? ? "General" : product[:category]) %></p>
+          <h3 class="name"><%= h(product[:name]) %></h3>
+          <div class="price-row">
+            <span class="price"><%= format_money(product[:priceCents], product[:currency]) %></span>
+            <% pct = discount_percent(product[:priceCents], product[:compareAtPriceCents]) %>
+            <% if pct %>
+              <span class="price-compare"><%= format_money(product[:compareAtPriceCents], product[:currency]) %></span>
+              <span class="badge-pill">-<%= pct %>%</span>
+            <% end %>
+          </div>
+          <% if product[:stock].to_i <= 0 %><span class="badge-pill badge-danger">Out of stock</span><% end %>
+        </div>
+      </a>
+    <% end %>
+  </div>
+<% end %>

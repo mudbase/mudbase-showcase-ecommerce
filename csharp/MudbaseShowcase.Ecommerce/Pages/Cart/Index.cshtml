@@ -1,0 +1,73 @@
+@page
+@model MudbaseShowcase.Ecommerce.Pages.Cart.IndexModel
+@using MudbaseShowcase.Ecommerce.Services
+@{
+    ViewData["Title"] = "Your cart";
+}
+
+<h1 class="h4 fw-semibold mb-4">Your cart</h1>
+
+<div class="row g-5">
+    <div class="col-lg-8">
+        @if (Model.LoadError is not null)
+        {
+            <p class="text-danger">@Model.LoadError</p>
+        }
+        @if (Model.Items.Count == 0)
+        {
+            <div class="border border-dashed rounded p-5 text-center text-muted">Your cart is empty.</div>
+        }
+        else
+        {
+            <ul class="list-group list-group-flush">
+                @foreach (CartItem item in Model.Items)
+                {
+                    <li class="list-group-item d-flex align-items-center gap-3 py-3">
+                        <div class="flex-shrink-0" style="width:64px;height:64px;">
+                            @if (!string.IsNullOrWhiteSpace(item.ImageUrl))
+                            {
+                                <img src="@item.ImageUrl" alt="@item.Name" class="rounded" style="width:64px;height:64px;object-fit:cover;" />
+                            }
+                            else
+                            {
+                                <div class="no-image rounded" style="width:64px;height:64px;">—</div>
+                            }
+                        </div>
+                        <div class="flex-grow-1 min-w-0">
+                            <p class="fw-medium mb-0 text-truncate">@item.Name</p>
+                            <p class="text-muted small mb-0">@MoneyFormatter.Format(item.PriceCents, item.Currency)</p>
+                        </div>
+                        <form method="post" asp-page-handler="UpdateQuantity" class="d-flex align-items-center gap-1">
+                            <input type="hidden" name="productId" value="@item.ProductId" />
+                            <button type="submit" name="quantity" value="@(item.Quantity - 1)" class="btn btn-sm btn-outline-secondary"
+                                    aria-label="Decrease quantity of @item.Name">−</button>
+                            <span class="px-2">@item.Quantity</span>
+                            <button type="submit" name="quantity" value="@(item.Quantity + 1)" class="btn btn-sm btn-outline-secondary"
+                                    aria-label="Increase quantity of @item.Name">+</button>
+                        </form>
+                        <p class="fw-medium mb-0 text-end" style="width:90px;">@MoneyFormatter.Format(item.LineTotalCents, item.Currency)</p>
+                        <form method="post" asp-page-handler="Remove">
+                            <input type="hidden" name="productId" value="@item.ProductId" />
+                            <button type="submit" class="btn btn-sm btn-link text-muted" aria-label="Remove @item.Name from cart">✕</button>
+                        </form>
+                    </li>
+                }
+            </ul>
+        }
+    </div>
+    <div class="col-lg-4">
+        <div class="border rounded p-4">
+            <h2 class="h6 fw-medium mb-3">Order summary</h2>
+            <div class="d-flex justify-content-between small mb-2">
+                <span class="text-muted">Subtotal</span>
+                <span>@MoneyFormatter.Format(Model.SubtotalCents, Model.Currency)</span>
+            </div>
+            <hr />
+            <div class="d-flex justify-content-between fw-medium mb-3">
+                <span>Total</span>
+                <span>@MoneyFormatter.Format(Model.SubtotalCents, Model.Currency)</span>
+            </div>
+            <a class="btn btn-brand w-100 @(Model.Items.Count == 0 ? "disabled" : "")" asp-page="/Checkout/Index">Checkout</a>
+        </div>
+    </div>
+</div>

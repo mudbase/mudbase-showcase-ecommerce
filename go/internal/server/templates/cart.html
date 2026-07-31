@@ -1,0 +1,50 @@
+{{define "content"}}
+<div class="checkout-grid">
+  <div>
+    <h1>Your cart</h1>
+    {{if .IsEmpty}}
+    <div class="empty-state"><p>Your cart is empty.</p></div>
+    {{else}}
+    <div>
+      {{range .Items}}
+      <div class="cart-line">
+        <div class="cart-line-thumb">
+          {{if .ImageURL}}<img src="{{.ImageURL}}" alt="{{.Name}}">{{end}}
+        </div>
+        <div class="cart-line-info">
+          <p class="name">{{.Name}}</p>
+          <p class="muted">{{.PriceLabel}}</p>
+        </div>
+        <form method="post" action="/cart/update" class="inline-form">
+          <input type="hidden" name="productId" value="{{.ProductID}}">
+          <div class="qty-control">
+            <button type="submit" name="delta" value="-1" aria-label="Decrease quantity of {{.Name}}">−</button>
+            <span>{{.Quantity}}</span>
+            <button type="submit" name="delta" value="1" aria-label="Increase quantity of {{.Name}}">+</button>
+          </div>
+        </form>
+        <p class="cart-line-total">{{.LineTotalLabel}}</p>
+        <form method="post" action="/cart/remove" class="inline-form">
+          <input type="hidden" name="productId" value="{{.ProductID}}">
+          <button type="submit" class="link-button" aria-label="Remove {{.Name}} from cart">Remove</button>
+        </form>
+      </div>
+      {{end}}
+    </div>
+    {{end}}
+  </div>
+
+  <div>
+    <div class="summary-card">
+      <h2>Order summary</h2>
+      <div class="summary-row"><span class="muted">Subtotal</span><span>{{.SubtotalLabel}}</span></div>
+      <div class="summary-total"><span>Total</span><span>{{.SubtotalLabel}}</span></div>
+      {{if .IsEmpty}}
+        <button class="button" style="width:100%" disabled>Checkout</button>
+      {{else}}
+        <a class="button" style="width:100%" href="/checkout">Checkout</a>
+      {{end}}
+    </div>
+  </div>
+</div>
+{{end}}
