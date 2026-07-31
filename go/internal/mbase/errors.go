@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	mudbase "github.com/mudbase/mudbase-sdk/go"
 )
@@ -63,4 +64,20 @@ func FriendlyMessage(err error) string {
 // as context, per this project's "every error wrapped with fmt.Errorf" rule.
 func wrapAPIError(action string, err error) error {
 	return fmt.Errorf("%s: %s: %w", action, FriendlyMessage(err), err)
+}
+
+// IsUnauthorized reports whether err represents an HTTP 401 response from the Mudbase API - an
+// expired or invalid access token, as opposed to any other 4xx/5xx failure a token refresh cannot
+// fix. The generated SDK client records the response's Status string (e.g. "401 Unauthorized") as
+// GenericOpenAPIError's error field (see mudbase-sdk/go/client.go's callAPI), so that's what this
+// checks against rather than a parsed status code the SDK doesn't expose.
+func IsUnauthorized(err error) bool {
+	if err == nil {
+		return false
+	}
+	var apiErr *mudbase.GenericOpenAPIError
+	if errors.As(err, &apiErr) {
+		return strings.HasPrefix(apiErr.Error(), "401")
+	}
+	return false
 }

@@ -179,6 +179,33 @@ func (c *Client) CurrentSession(ctx context.Context, token string) (AuthResult, 
 	return result, nil
 }
 
+// Refresh exchanges refreshToken for a new access token + refresh token pair. The previous refresh
+// token is invalidated by rotation the moment this succeeds - confirmed against
+// mudbase-sdk/go/api_authentication.go's RefreshToken doc comment ("the previous refresh token is
+// invalidated ... if the same refresh token is used again, the session is revoked"), so callers
+// must persist both returned values, not just the new access token. No bearer token is attached to
+// this call; POST /api/auth/refresh authenticates purely via the refresh token in the request
+// body. The response carries no `user` object, so the returned AuthResult's User field is left
+// zero-valued - callers refreshing an existing session should keep whatever user snapshot they
+// already have and only replace the token pair (see internal/server/middleware.go's
+// tokenRefresher).
+func (c *Client) Refresh(ctx context.Context, refreshToken string) (AuthResult, error) {
+	req := mudbase.NewRefreshTokenRequest(refreshToken)
+
+	resp, _, err := c.SDK.AuthenticationAPI.RefreshToken(ctx).
+		RefreshTokenRequest(*req).
+		Execute()
+	if err != nil {
+		return AuthResult{}, wrapAPIError("mbase: refreshing access token", err)
+	}
+
+	return AuthResult{
+		Token:        resp.GetToken(),
+		RefreshToken: resp.GetRefreshToken(),
+		ExpiresIn:    resp.GetExpiresIn(),
+	}, nil
+}
+
 // RegisterRole is the Mudbase Multi-Role signup role slug. Only "customer" (self-signup buyer
 // accounts) is exposed through this app's UI - "seller" accounts are provisioned out of band, per
 // web/plan/build-plan.md's Multi-Role Configuration.

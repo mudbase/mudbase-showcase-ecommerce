@@ -20,6 +20,7 @@ const cookieName = "mudbase_showcase_session"
 
 const (
 	keyAccessToken   = "access_token"
+	keyRefreshToken  = "refresh_token"
 	keyUserID        = "user_id"
 	keyEmail         = "email"
 	keyFirstName     = "first_name"
@@ -96,6 +97,10 @@ func (d *Data) boolean(key string) bool {
 // AccessToken returns the current Mudbase bearer token, or "" before any session is established.
 func (d *Data) AccessToken() string { return d.str(keyAccessToken) }
 
+// RefreshToken returns the current Mudbase refresh token, or "" before any session is established
+// (or after a refresh whose response - unexpectedly - omitted one).
+func (d *Data) RefreshToken() string { return d.str(keyRefreshToken) }
+
 // UserID returns the signed-in (or anonymous) user's Mudbase ID.
 func (d *Data) UserID() string { return d.str(keyUserID) }
 
@@ -130,6 +135,7 @@ func (d *Data) IsSignedIn() bool { return d.UserID() != "" && !d.IsAnonymous() }
 // SetUser stores the given auth result as the session's current identity.
 func (d *Data) SetUser(auth mbase.AuthResult) {
 	d.sess.Values[keyAccessToken] = auth.Token
+	d.sess.Values[keyRefreshToken] = auth.RefreshToken
 	d.sess.Values[keyUserID] = auth.User.ID
 	d.sess.Values[keyEmail] = auth.User.Email
 	d.sess.Values[keyFirstName] = auth.User.FirstName
@@ -139,10 +145,19 @@ func (d *Data) SetUser(auth mbase.AuthResult) {
 	d.sess.Values[keyEmailVerified] = auth.User.EmailVerified
 }
 
+// SetTokens replaces just the access/refresh token pair, leaving every other identity field (user
+// ID, name, role, ...) untouched - used after a transparent token refresh (internal/mbase.Refresh),
+// whose response carries no `user` object to re-derive those fields from.
+func (d *Data) SetTokens(accessToken, refreshToken string) {
+	d.sess.Values[keyAccessToken] = accessToken
+	d.sess.Values[keyRefreshToken] = refreshToken
+}
+
 // ClearUser wipes identity fields (used on logout), leaving any guest cart untouched - the visitor
 // immediately gets a fresh anonymous session on their next request via the session middleware.
 func (d *Data) ClearUser() {
 	delete(d.sess.Values, keyAccessToken)
+	delete(d.sess.Values, keyRefreshToken)
 	delete(d.sess.Values, keyUserID)
 	delete(d.sess.Values, keyEmail)
 	delete(d.sess.Values, keyFirstName)

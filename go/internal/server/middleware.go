@@ -1,11 +1,14 @@
 package server
 
 import (
+	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 
 	"github.com/mudbase/mudbase-showcase-ecommerce/go/internal/mbase"
+	"github.com/mudbase/mudbase-showcase-ecommerce/go/internal/session"
 )
 
 // sessionMiddleware loads the visitor's session cookie and, on a first visit (no access token
@@ -36,8 +39,36 @@ func (a *App) sessionMiddleware(next http.Handler) http.Handler {
 			}
 		}
 
+		r = r.WithContext(mbase.WithTokenRefresher(r.Context(), a.tokenRefresher(w, r, data)))
 		next.ServeHTTP(w, withSession(r, data))
 	})
+}
+
+// tokenRefresher builds the mbase.TokenRefresher this request's context carries, so any
+// List/Get/Create/Update/Delete call made against internal/store deep in a handler can
+// transparently recover from an expired access token: on a 401, mbase.callWithRefresh (see
+// internal/mbase/refresh.go) invokes this closure, which exchanges the session's stored refresh
+// token for a new pair via a.mudbase.Refresh, persists both back into the session cookie, and
+// hands the new access token back for one retry - mirrors the reference web app's axios response
+// interceptor (web/src/lib/mudbase-provider.tsx) instead of surfacing a raw 401 to the shopper.
+func (a *App) tokenRefresher(w http.ResponseWriter, r *http.Request, data *session.Data) mbase.TokenRefresher {
+	return func(ctx context.Context) (string, error) {
+		refreshToken := data.RefreshToken()
+		if refreshToken == "" {
+			return "", fmt.Errorf("server: session has no refresh token to use")
+		}
+
+		result, err := a.mudbase.Refresh(ctx, refreshToken)
+		if err != nil {
+			return "", fmt.Errorf("server: refreshing access token: %w", err)
+		}
+
+		data.SetTokens(result.Token, result.RefreshToken)
+		if err := data.Save(w, r); err != nil {
+			return "", fmt.Errorf("server: persisting refreshed session token: %w", err)
+		}
+		return result.Token, nil
+	}
 }
 
 // requireCustomer gates a route on a real signed-in "customer" account, redirecting anonymous and
