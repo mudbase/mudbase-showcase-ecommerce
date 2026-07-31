@@ -9,14 +9,14 @@ class App < Sinatra::Base
   get "/orders" do
     require_login!
 
-    @orders = Mudbase::OrdersRepo.list_for_user(access_token: access_token, user_id: @current_user[:id])
+    @orders = with_access_token { |token| Mudbase::OrdersRepo.list_for_user(access_token: token, user_id: @current_user[:id]) }
     erb :"orders/index"
   end
 
   get "/orders/:id" do
     require_login!
 
-    @order = Mudbase::OrdersRepo.find(access_token: access_token, id: params["id"])
+    @order = with_access_token { |token| Mudbase::OrdersRepo.find(access_token: token, id: params["id"]) }
     halt 404, erb(:"errors/not_found", layout: :layout) unless @order
 
     @items = Mudbase::JsonField.parse(@order[:itemsJson], [])

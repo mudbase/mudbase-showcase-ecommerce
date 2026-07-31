@@ -1,13 +1,26 @@
 # frozen_string_literal: true
 
+require_relative "mudbase/errors"
+require_relative "mudbase/auth_service"
+
 # Sinatra helpers for reading/writing the signed-in user's state. The Mudbase-issued JWT is
 # held only inside the Rack session cookie (encrypted + signed + httponly via
 # Rack::Session::Cookie, configured in app.rb) - it is never rendered into a page or exposed to
-# client-side JavaScript. This app doesn't implement refresh-token rotation: once the JWT's
-# lifetime (tracked via `expires_at`) elapses, `current_user` treats the session as logged out
-# and the next Mudbase call that would have needed auth instead redirects to /login. That's a
-# deliberate scope cut for a reference/demo app - see README "Known limitations".
+# client-side JavaScript.
+#
+# Refresh-token rotation: `current_user`/`logged_in?` are keyed only on whether a user was ever
+# stored in this session - NOT on the tracked access-token expiry - because the access token is
+# independently recoverable via `with_access_token` below. Every route that calls Mudbase must
+# route the access token through `with_access_token { |token| ... }` instead of reading
+# `access_token` directly: it proactively refreshes a token that's about to expire, and - the
+# same as the reference Next.js app's `MudbaseClient#request` - reactively refreshes and retries
+# exactly once on a real 401 from the server. Only when the refresh token itself is rejected
+# (expired/already rotated away/revoked) does the session actually get torn down, via
+# `MudbaseSDK::ApiError` bubbling up to app.rb's global 401 handler, which calls
+# `clear_auth_session!` and redirects to `/login`.
 module SessionHelpers
+  TOKEN_REFRESH_MARGIN_SECONDS = 60
+
   def store_auth_session!(auth_session)
     session[:token] = auth_session.token
     session[:refresh_token] = auth_session.refresh_token
@@ -19,24 +32,50 @@ module SessionHelpers
     session.clear
   end
 
-  def session_expired?
-    session[:expires_at].nil? || Time.now.to_i >= session[:expires_at]
-  end
-
   def access_token
-    return nil if session_expired?
-
     session[:token]
   end
 
   def current_user
-    return nil if session_expired?
-
     session[:user]
   end
 
   def logged_in?
     !current_user.nil?
+  end
+
+  # Wraps every Mudbase call that needs the signed-in user's access token. Proactively refreshes
+  # a token that's within `TOKEN_REFRESH_MARGIN_SECONDS` of its tracked expiry (avoids a wasted
+  # round trip most of the time), then - if the call still comes back with a real 401 (clock
+  # drift, a token revoked server-side, etc.) - refreshes once more and retries the block exactly
+  # once. If no refresh token is stored, or the refresh token itself is rejected, the original
+  # `MudbaseSDK::ApiError` propagates to app.rb's global handler, which logs the session out.
+  def with_access_token
+    refresh_access_token! if token_expiring_soon?
+    yield session[:token]
+  rescue MudbaseSDK::ApiError => e
+    failure = Mudbase::ApiFailure.from(e)
+    raise e unless failure.status == 401
+    raise e unless refresh_access_token!
+
+    yield session[:token]
+  end
+
+  def token_expiring_soon?
+    session[:expires_at].nil? || Time.now.to_i >= session[:expires_at] - TOKEN_REFRESH_MARGIN_SECONDS
+  end
+
+  # @return [Boolean] whether the refresh succeeded and `session[:token]` is now fresh.
+  def refresh_access_token!
+    return false unless session[:refresh_token]
+
+    auth_session = Mudbase::AuthService.refresh!(session[:refresh_token])
+    session[:token] = auth_session.token
+    session[:refresh_token] = auth_session.refresh_token
+    session[:expires_at] = Time.now.to_i + auth_session.expires_in.to_i
+    true
+  rescue Mudbase::AuthError
+    false
   end
 
   def seller?

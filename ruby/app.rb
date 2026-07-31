@@ -52,7 +52,7 @@ class App < Sinatra::Base
     @flash_error = pop_flash_error
     @current_user = current_user
     @cart_count = if @current_user
-      Mudbase::CartsRepo.items_for_user(access_token: access_token, user_id: @current_user[:id])
+      with_access_token { |token| Mudbase::CartsRepo.items_for_user(access_token: token, user_id: @current_user[:id]) }
         .sum { |i| i[:quantity] }
     end
   end

@@ -1,6 +1,6 @@
 GIT
   remote: https://github.com/mudbase/mudbase-sdk.git
-  revision: 5d2636d4f1e09948a6a7573c755e58061147a3df
+  revision: 5f202694e6a7b518d00a18d69280576325c4affd
   glob: ruby/*.gemspec
   specs:
     mudbase_sdk (2.0.0)

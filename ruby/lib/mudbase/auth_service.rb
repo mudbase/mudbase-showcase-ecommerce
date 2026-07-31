@@ -42,33 +42,29 @@ module Mudbase
     CUSTOMER_ROLE = "customer"
 
     def self.register_customer!(email:, password:, first_name:, last_name:, agreed_to_terms:)
+      # Post-regen: `RegisterWithRoleRequest` now declares `agreed_to_terms` natively (wire key
+      # `agreedToTerms`) and its setter only rejects `nil`, so passing the real boolean is
+      # sufficient - the old `debug_body:` JSON-override hack for this field is gone. This call
+      # still forces `debug_return_type: "Object"` (not because the wire response is untyped
+      # anymore - `RegisterWithRole201Response`/`RegisterWithRole201ResponseUser` are now
+      # generated with `token`/`refreshToken`/`expiresIn`/`customRole` etc. - but purely so
+      # `handle_auth_response` can share one Hash-shaped code path with `login!`, whose
+      # `LoginLocalUser200ResponseUser` still doesn't declare `customRole` at all (see
+      # ClientFactory::OBJECT_RESPONSE). Two different parsing paths for the same
+      # AuthSession#user shape would be its own source of bugs.
       request = MudbaseSDK::RegisterWithRoleRequest.new(
         email: email,
         password: password,
         first_name: first_name,
         last_name: last_name,
         project_id: Mudbase::Config.project_id,
+        agreed_to_terms: agreed_to_terms,
       )
-
-      # `RegisterWithRoleRequest` doesn't declare `agreedToTerms` (the generator only typed
-      # the fields in its schema), but the platform's signup validator rejects the request
-      # without it - confirmed by the reference web app's own `/api/auth/local/signup/:role`
-      # caller. `debug_body` overrides the serialized request body so this field still goes
-      # out on the wire even though the typed model can't carry it.
-      body_json = {
-        email: email,
-        password: password,
-        firstName: first_name,
-        lastName: last_name,
-        projectId: Mudbase::Config.project_id,
-        agreedToTerms: agreed_to_terms,
-      }.to_json
 
       data, = Mudbase::ClientFactory.multi_role_api.register_with_role_with_http_info(
         CUSTOMER_ROLE,
         request,
-        debug_return_type: "Object",
-        debug_body: body_json,
+        Mudbase::ClientFactory::OBJECT_RESPONSE,
       )
 
       handle_auth_response(data)
@@ -96,6 +92,27 @@ module Mudbase
       end
 
       raise AuthError, failure.friendly_message
+    end
+
+    # Exchanges a stored (single-use, rotate-on-use) refresh token for a fresh access/refresh
+    # pair. `RefreshToken200Response` (message/token/refreshToken/expiresIn) has no dynamic
+    # per-project fields and no nested user model, so it doesn't hit either of the typed-model
+    # gaps `OBJECT_RESPONSE` exists for - the plain typed response is used as-is. No `user` in
+    # the response (the identity doesn't change on refresh), so the returned `AuthSession#user`
+    # is left `nil`; callers that only need the refreshed token/expiry (see
+    # SessionHelpers#refresh_access_token!) don't touch it.
+    def self.refresh!(refresh_token)
+      request = MudbaseSDK::RefreshTokenRequest.new(refresh_token: refresh_token)
+      data, = Mudbase::ClientFactory.auth_api.refresh_token_with_http_info(request)
+
+      AuthSession.new(
+        token: data.token,
+        refresh_token: data.refresh_token,
+        expires_in: data.expires_in || 3600,
+        user: nil,
+      )
+    rescue MudbaseSDK::ApiError => e
+      raise AuthError, Mudbase::ApiFailure.from(e).friendly_message
     end
 
     def self.logout!(access_token)

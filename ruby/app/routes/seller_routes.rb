@@ -10,8 +10,8 @@ class App < Sinatra::Base
   get "/seller" do
     require_seller!
 
-    @orders = Mudbase::OrdersRepo.list_all(access_token: access_token)
-    @products = Mudbase::ProductsRepo.list(access_token: access_token, active_only: false)
+    @orders = with_access_token { |token| Mudbase::OrdersRepo.list_all(access_token: token) }
+    @products = with_access_token { |token| Mudbase::ProductsRepo.list(access_token: token, active_only: false) }
     erb :"seller/dashboard"
   end
 
@@ -38,10 +38,12 @@ class App < Sinatra::Base
     end
 
     slug = "#{slugify(values[:name])}-#{SecureRandom.alphanumeric(6).downcase}"
-    Mudbase::ProductsRepo.create!(
-      access_token: access_token,
-      attributes: product_attributes(values).merge(slug: slug, sellerId: @current_user[:id]),
-    )
+    with_access_token do |token|
+      Mudbase::ProductsRepo.create!(
+        access_token: token,
+        attributes: product_attributes(values).merge(slug: slug, sellerId: @current_user[:id]),
+      )
+    end
 
     flash_notice("#{values[:name]} was added to the catalog.")
     redirect "/seller"
@@ -50,7 +52,7 @@ class App < Sinatra::Base
   get "/seller/products/:id/edit" do
     require_seller!
 
-    product = Mudbase::ProductsRepo.find(access_token: access_token, id: params["id"])
+    product = with_access_token { |token| Mudbase::ProductsRepo.find(access_token: token, id: params["id"]) }
     halt 404, erb(:"errors/not_found", layout: :layout) unless product
 
     @product = product_to_form_values(product)
@@ -72,11 +74,13 @@ class App < Sinatra::Base
       halt erb(:"seller/product_form")
     end
 
-    Mudbase::ProductsRepo.update!(
-      access_token: access_token,
-      id: params["id"],
-      attributes: product_attributes(values),
-    )
+    with_access_token do |token|
+      Mudbase::ProductsRepo.update!(
+        access_token: token,
+        id: params["id"],
+        attributes: product_attributes(values),
+      )
+    end
 
     flash_notice("#{values[:name]} was updated.")
     redirect "/seller"
@@ -85,12 +89,12 @@ class App < Sinatra::Base
   post "/seller/orders/:id/status" do
     require_seller!
 
-    order = Mudbase::OrdersRepo.find(access_token: access_token, id: params["id"])
+    order = with_access_token { |token| Mudbase::OrdersRepo.find(access_token: token, id: params["id"]) }
     halt 404, "Order not found" unless order
 
     next_status = Mudbase::OrdersRepo.next_status_for(order[:orderStatus])
     if next_status
-      Mudbase::OrdersRepo.update!(access_token: access_token, id: order[:_id], attributes: { orderStatus: next_status })
+      with_access_token { |token| Mudbase::OrdersRepo.update!(access_token: token, id: order[:_id], attributes: { orderStatus: next_status }) }
       flash_notice("Order marked #{next_status}.")
     end
 

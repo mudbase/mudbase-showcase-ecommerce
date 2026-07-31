@@ -10,7 +10,7 @@ class App < Sinatra::Base
     @selected_category = params["category"].to_s.strip
     @selected_category = nil if @selected_category.empty?
 
-    all_active = Mudbase::ProductsRepo.list(access_token: access_token, active_only: true)
+    all_active = with_access_token { |token| Mudbase::ProductsRepo.list(access_token: token, active_only: true) }
     @categories = Mudbase::ProductsRepo.categories(all_active)
     @products = @selected_category ? all_active.select { |p| p[:category] == @selected_category } : all_active
 
@@ -20,7 +20,7 @@ class App < Sinatra::Base
   get "/products/:slug" do
     require_login!
 
-    @product = Mudbase::ProductsRepo.find_by_slug(access_token: access_token, slug: params["slug"])
+    @product = with_access_token { |token| Mudbase::ProductsRepo.find_by_slug(access_token: token, slug: params["slug"]) }
     halt 404, erb(:"errors/not_found", layout: :layout) unless @product
 
     @gallery = [@product[:imageUrl], *Mudbase::JsonField.parse(@product[:galleryJson], [])].compact

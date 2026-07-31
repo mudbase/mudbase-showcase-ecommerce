@@ -109,27 +109,31 @@ refresh token concurrently), this app POSTs to the already-deployed Next.js refe
 `lib/mudbase/payment_link_client.rb`. If that proxy returns `403`/`kyc_required`, this app
 surfaces an honest "payments pending identity verification" message rather than faking success.
 
-**Two real generated-SDK gaps this app deliberately works around, not by editing the vendored
-gem:**
+**Generated-SDK gaps this app works around, not by editing the vendored gem** (updated after a
+2026-07-31 SDK regen fixed two of the three original gaps):
 
-1. `MudbaseSDK::MultiRoleFeatureApi#register_with_role` (`POST /api/auth/local/signup/:role`)
-   is generated with return type `nil` — its `_with_http_info` wrapper hardcodes
-   `return_type = opts[:debug_return_type]`, which is `nil` unless a caller supplies it, so the
-   signup response (token, user) would otherwise be silently discarded even though the server
-   really does return it. This app passes `debug_return_type: "Object"` (a documented
-   openapi-generator escape hatch present in every generated method) to force deserialization.
-   The same request's validator also rejects a registration missing `agreedToTerms`, a field
-   the generated `RegisterWithRoleRequest` model doesn't declare at all — this app passes
-   `debug_body:` alongside it to add that field to the outgoing JSON without touching the
-   model. See `lib/mudbase/auth_service.rb`.
-2. Every "returns a document" model (`DataListResponseDataInner`, `User`,
+1. ~~`MultiRoleFeatureApi#register_with_role` generated with return type `nil`~~ — **fixed by
+   the regen.** `register_with_role_with_http_info` now defaults `return_type` to the real typed
+   `RegisterWithRole201Response` (and its `RegisterWithRole201ResponseUser` submodel declares
+   `custom_role`), so the signup response is no longer silently discarded even without any
+   override. ~~`RegisterWithRoleRequest` doesn't declare `agreedToTerms`~~ — **fixed by the
+   regen.** The model now declares `agreed_to_terms` (wire key `agreedToTerms`, setter rejects
+   `nil`) as a normal constructor argument, so the old `debug_body:` JSON-splice hack for this
+   field is gone. `AuthService.register_customer!` still passes `debug_return_type: "Object"`
+   on this call, but only so its response can share one Hash-shaped parsing path with `login!`
+   (see point 2, which still applies to login) rather than maintaining two different
+   `AuthSession#user` construction paths for the same struct. See `lib/mudbase/auth_service.rb`.
+2. **Still open.** Every "returns a document" model (`DataListResponseDataInner`,
    `LoginLocalUser200ResponseUser`, `CreateAnonymousSession200ResponseUser`) only types the
    handful of fields the generator could see in the spec (`_id`/`created_at`/`updated_at` for
-   collection documents; no `customRole`/`isAnonymous` on the user models at all, even though
-   the real API returns them - confirmed against the reference Next.js app's own `UserObject`
-   type). Typed deserialization would silently drop every product/order/cart field and the
-   `customRole` this app's seller-area gating depends on. Every `DataApi`/`AuthenticationApi`/
-   `MultiRoleFeatureApi` call in this app therefore passes `debug_return_type: "Object"` (see
+   collection documents; no `customRole`/`isAnonymous` on these endpoint-specific user
+   submodels, even though the real API returns them - confirmed against the reference Next.js
+   app's own `UserObject` type). The regen *did* add `custom_role`/`is_anonymous` to the
+   standalone `User` model, but not to these per-endpoint response submodels, so the gap
+   persists for every login and every collection read. Typed deserialization would silently
+   drop every product/order/cart field and the `customRole` this app's seller-area gating
+   depends on. Every `DataApi`/`AuthenticationApi`/`MultiRoleFeatureApi` call in this app
+   therefore still passes `debug_return_type: "Object"` (see
    `Mudbase::ClientFactory::OBJECT_RESPONSE`) to get the real parsed JSON as a plain Hash
    instead. Worth flagging back to Mudbase: the generated Ruby client's document/user models
    are effectively unusable as typed objects for this SDK's own dynamic-schema collections.
@@ -151,12 +155,17 @@ anonymous role), every page here — including the catalog — requires signing 
 flow could be added the same way `AuthService.login!` works today, using
 `MudbaseSDK::AuthenticationApi#create_anonymous_session`.
 
-**No refresh-token rotation.** The Mudbase-issued JWT is held server-side in an httponly,
-signed+encrypted Rack session cookie (`Rack::Session::Cookie`) — never sent to client
-JavaScript — but this app doesn't implement the rotate-on-use refresh flow. Once the JWT's
-tracked expiry passes, `current_user` treats the session as logged out and the shopper is
-asked to sign in again, rather than silently refreshing. `MudbaseSDK::AuthenticationApi#refresh_token`
-exists and would be the natural next step for a production deployment.
+**Refresh-token rotation.** The Mudbase-issued JWT and its single-use, rotate-on-use refresh
+token are held server-side in an httponly, signed+encrypted Rack session cookie
+(`Rack::Session::Cookie`) — never sent to client JavaScript. Every route that talks to Mudbase
+routes its access token through `SessionHelpers#with_access_token`, which mirrors the reference
+Next.js app's `MudbaseClient#request` retry wrapper: it proactively refreshes a token within 60
+seconds of its tracked expiry, and — the same as that wrapper — reactively refreshes and retries
+exactly once on a real `401` from the server (clock drift, a token revoked out from under a live
+session, etc.), via `AuthService.refresh!` (`MudbaseSDK::AuthenticationApi#refresh_token`). Only
+when the refresh token itself is rejected does the session actually get logged out - that
+`MudbaseSDK::ApiError` propagates to `app.rb`'s global 401 handler, which clears the session and
+redirects to `/login` with a "please sign in again" message, rather than a raw error page.
 
 ## Local development
 

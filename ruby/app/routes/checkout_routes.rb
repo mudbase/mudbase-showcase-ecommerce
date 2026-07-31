@@ -15,7 +15,7 @@ class App < Sinatra::Base
   get "/checkout" do
     require_login!
 
-    @items = Mudbase::CartsRepo.items_for_user(access_token: access_token, user_id: @current_user[:id])
+    @items = with_access_token { |token| Mudbase::CartsRepo.items_for_user(access_token: token, user_id: @current_user[:id]) }
     if @items.empty?
       flash_error("Your cart is empty - add something before checking out.")
       redirect "/cart"
@@ -29,7 +29,7 @@ class App < Sinatra::Base
   post "/checkout" do
     require_login!
 
-    items = Mudbase::CartsRepo.items_for_user(access_token: access_token, user_id: @current_user[:id])
+    items = with_access_token { |token| Mudbase::CartsRepo.items_for_user(access_token: token, user_id: @current_user[:id]) }
     if items.empty?
       flash_error("Your cart is empty - add something before checking out.")
       redirect "/cart"
@@ -55,21 +55,23 @@ class App < Sinatra::Base
       country: @shipping["country"],
     }
 
-    order = Mudbase::OrdersRepo.create!(
-      access_token: access_token,
-      attributes: {
-        userId: @current_user[:id],
-        itemsJson: Mudbase::JsonField.stringify(
-          items.map { |i| { productId: i[:productId], name: i[:name], priceCents: i[:priceCents], quantity: i[:quantity] } },
-        ),
-        subtotalCents: subtotal_cents,
-        currency: "USD",
-        orderStatus: "awaiting_payment",
-        shippingName: shipping_address[:fullName],
-        shippingAddressJson: Mudbase::JsonField.stringify(shipping_address),
-        paymentStatus: "unpaid",
-      },
-    )
+    order = with_access_token do |token|
+      Mudbase::OrdersRepo.create!(
+        access_token: token,
+        attributes: {
+          userId: @current_user[:id],
+          itemsJson: Mudbase::JsonField.stringify(
+            items.map { |i| { productId: i[:productId], name: i[:name], priceCents: i[:priceCents], quantity: i[:quantity] } },
+          ),
+          subtotalCents: subtotal_cents,
+          currency: "USD",
+          orderStatus: "awaiting_payment",
+          shippingName: shipping_address[:fullName],
+          shippingAddressJson: Mudbase::JsonField.stringify(shipping_address),
+          paymentStatus: "unpaid",
+        },
+      )
+    end
 
     amount = format("%.2f", subtotal_cents / 100.0)
     result = Mudbase::PaymentLinkClient.create_for_order(
@@ -81,7 +83,7 @@ class App < Sinatra::Base
 
     unless result.ok?
       if result.kyc_required?
-        Mudbase::OrdersRepo.update!(access_token: access_token, id: order[:_id], attributes: { orderStatus: "pending" })
+        with_access_token { |token| Mudbase::OrdersRepo.update!(access_token: token, id: order[:_id], attributes: { orderStatus: "pending" }) }
         flash_error(result.error_message)
       else
         flash_error(result.error_message)
@@ -89,12 +91,14 @@ class App < Sinatra::Base
       redirect "/orders/#{order[:_id]}"
     end
 
-    Mudbase::OrdersRepo.update!(
-      access_token: access_token,
-      id: order[:_id],
-      attributes: { paymentLinkToken: result.link[:token] },
-    )
-    Mudbase::CartsRepo.clear!(access_token: access_token, user_id: @current_user[:id])
+    with_access_token do |token|
+      Mudbase::OrdersRepo.update!(
+        access_token: token,
+        id: order[:_id],
+        attributes: { paymentLinkToken: result.link[:token] },
+      )
+    end
+    with_access_token { |token| Mudbase::CartsRepo.clear!(access_token: token, user_id: @current_user[:id]) }
 
     redirect "/checkout/#{result.link[:token]}"
   end
