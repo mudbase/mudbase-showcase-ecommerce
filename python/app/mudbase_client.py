@@ -2,29 +2,28 @@
 asyncio variant is published), plus small `asyncio.to_thread` adapters so
 FastAPI's async handlers never block the event loop on a blocking HTTP call.
 
-Two things below intentionally bypass the narrow generated *typed* wrapper
-methods in favor of the SDK's own public low-level building blocks
+`login_sync` intentionally bypasses the narrow generated *typed* wrapper
+method in favor of the SDK's own public low-level building blocks
 (`ApiClient.param_serialize` + `ApiClient.call_api`), which every generated
-method uses internally:
+method uses internally: `login_local_user`'s generated response's nested user
+model (`LoginLocalUser200ResponseUser`) only declares
+`id/email/firstName/lastName/role/emailVerified/twoFactorEnabled` — it has no
+`customRole` field, even though the real Multi-Role feature returns one. We
+need `customRole` to gate the seller area, so we parse the raw response
+ourselves instead of trusting the incomplete typed model.
 
-1. `register_with_role` — the generated `RegisterWithRoleRequest` model only
-   declares `email`/`password`/`firstName`/`lastName`/`projectId`. The real
-   `/api/auth/local/signup/{role}` endpoint's validator additionally requires
-   `agreedToTerms` (see web/src/lib/mudbase.ts's identical note about the
-   hand-rolled TS client) — a field the generated request model has no way to
-   carry. Its generated response type is also declared `void` (no schema was
-   captured for this operation), which would silently discard the token/user
-   payload the endpoint actually returns.
-2. `login_local_user` — the generated response's nested user model
-   (`LoginLocalUser200ResponseUser`) only declares
-   `id/email/firstName/lastName/role/emailVerified/twoFactorEnabled` — it has
-   no `customRole` field, even though the real Multi-Role feature (added to
-   the platform after this client was generated) returns one. We need
-   `customRole` to gate the seller area, so we parse the raw response
-   ourselves instead of trusting the incomplete typed model.
-
-Both still go through `mudbase_sdk.ApiClient` — same configuration, host,
+This still goes through `mudbase_sdk.ApiClient` — same configuration, host,
 auth-header, and serialization machinery as every other call in this module.
+
+`register_with_role_sync` used to need the same raw-JSON treatment (the
+generated `RegisterWithRoleRequest` model didn't carry `agreedToTerms`, and
+the operation's response type was declared `void`), but a subsequent SDK
+regeneration closed both gaps: `RegisterWithRoleRequest` now has a required
+`agreed_to_terms` field, and the operation (generated under
+`MultiRoleFeatureApi`, not `AuthenticationApi`) returns a fully-typed
+`RegisterWithRole201Response` with `token`/`refreshToken`/`user` (including
+`customRole`). It now uses the typed method directly like every other call in
+this module except `login_sync`.
 """
 
 import json
@@ -111,20 +110,22 @@ def register_with_role_sync(
 ) -> dict[str, Any]:
     settings = get_settings()
     with _build_api_client() as client:
-        return _raw_json_call(
-            client,
-            "POST",
-            "/api/auth/local/signup/{role}",
-            path_params={"role": role},
-            body={
-                "email": email,
-                "password": password,
-                "firstName": first_name,
-                "lastName": last_name,
-                "projectId": settings.mudbase_project_id,
-                "agreedToTerms": agreed_to_terms,
-            },
-        )
+        api = mudbase_sdk.MultiRoleFeatureApi(client)
+        try:
+            response = api.register_with_role(
+                role,
+                mudbase_sdk.RegisterWithRoleRequest(
+                    email=email,
+                    password=password,
+                    firstName=first_name,
+                    lastName=last_name,
+                    projectId=settings.mudbase_project_id,
+                    agreedToTerms=agreed_to_terms,
+                ),
+            )
+        except ApiException as exc:
+            raise _wrap_api_exception(exc) from exc
+        return response.to_dict()
 
 
 def login_sync(email: str, password: str) -> dict[str, Any]:

@@ -15,7 +15,7 @@ from app.mudbase_client import MudbaseApiError
 from app.schemas.product import ProductFormValues
 from app.services import orders as orders_service
 from app.services import products as products_service
-from app.session import SessionUser, get_session_user, get_valid_access_token, set_flash
+from app.session import SessionUser, call_with_reauth, get_session_user, get_valid_access_token, set_flash
 from app.templates_env import templates
 
 router = APIRouter()
@@ -39,13 +39,13 @@ async def seller_dashboard(request: Request) -> HTMLResponse | RedirectResponse:
     _user, token = guard
 
     try:
-        orders = await orders_service.list_all_orders(access_token=token)
+        orders, token = await call_with_reauth(request, token, lambda t: orders_service.list_all_orders(access_token=t))
         orders_error: str | None = None
     except MudbaseApiError as exc:
         orders, orders_error = [], f"Couldn't load orders: {exc.message}"
 
     try:
-        products = await products_service.list_seller_products(token)
+        products, token = await call_with_reauth(request, token, products_service.list_seller_products)
         products_error: str | None = None
     except MudbaseApiError as exc:
         products, products_error = [], f"Couldn't load products: {exc.message}"
@@ -70,9 +70,14 @@ async def seller_advance_order(request: Request, order_id: str) -> RedirectRespo
     _user, token = guard
 
     try:
-        order = await orders_service.get_order(order_id, access_token=token)
-        if order and order.next_status:
-            await orders_service.advance_order_status(order_id, order.next_status, access_token=token)
+        order, token = await call_with_reauth(request, token, lambda t: orders_service.get_order(order_id, access_token=t))
+        next_status = order.next_status if order else None
+        if next_status is not None:
+            await call_with_reauth(
+                request,
+                token,
+                lambda t: orders_service.advance_order_status(order_id, next_status, access_token=t),
+            )
     except MudbaseApiError as exc:
         set_flash(request, f"Couldn't update that order: {exc.message}", "error")
 
@@ -97,7 +102,12 @@ async def edit_product_page(request: Request, product_id: str) -> HTMLResponse |
         return guard
     _user, token = guard
 
-    product = await products_service.get_product_by_id(product_id, access_token=token)
+    try:
+        product, token = await call_with_reauth(
+            request, token, lambda t: products_service.get_product_by_id(product_id, access_token=t)
+        )
+    except MudbaseApiError:
+        product = None
     if product is None:
         set_flash(request, "That product couldn't be found.", "error")
         return RedirectResponse("/seller", status_code=303)
@@ -156,7 +166,9 @@ async def create_product_submit(request: Request) -> HTMLResponse | RedirectResp
         )
 
     try:
-        await products_service.create_product(values, seller_id=user.id, access_token=token)
+        await call_with_reauth(
+            request, token, lambda t: products_service.create_product(values, seller_id=user.id, access_token=t)
+        )
     except MudbaseApiError as exc:
         context = await build_base_context(request)
         context.update({"product": None, "errors": {}, "form_error": exc.message})
@@ -180,7 +192,12 @@ async def update_product_submit(request: Request, product_id: str) -> HTMLRespon
     try:
         values = _parse_product_form(_form_to_str_dict(raw_form), gallery_urls)
     except (ValidationError, ValueError) as exc:
-        product = await products_service.get_product_by_id(product_id, access_token=token)
+        try:
+            product, token = await call_with_reauth(
+                request, token, lambda t: products_service.get_product_by_id(product_id, access_token=t)
+            )
+        except MudbaseApiError:
+            product = None
         context = await build_base_context(request)
         context.update({"product": product, "errors": _form_errors(exc), "form_error": None})
         return templates.TemplateResponse(
@@ -188,9 +205,16 @@ async def update_product_submit(request: Request, product_id: str) -> HTMLRespon
         )
 
     try:
-        await products_service.update_product(product_id, values, access_token=token)
+        await call_with_reauth(
+            request, token, lambda t: products_service.update_product(product_id, values, access_token=t)
+        )
     except MudbaseApiError as exc:
-        product = await products_service.get_product_by_id(product_id, access_token=token)
+        try:
+            product, token = await call_with_reauth(
+                request, token, lambda t: products_service.get_product_by_id(product_id, access_token=t)
+            )
+        except MudbaseApiError:
+            product = None
         context = await build_base_context(request)
         context.update({"product": product, "errors": {}, "form_error": exc.message})
         return templates.TemplateResponse(
@@ -209,7 +233,7 @@ async def delete_product_submit(request: Request, product_id: str) -> RedirectRe
     _user, token = guard
 
     try:
-        await products_service.delete_product(product_id, access_token=token)
+        await call_with_reauth(request, token, lambda t: products_service.delete_product(product_id, access_token=t))
         set_flash(request, "Product deleted.", "success")
     except MudbaseApiError as exc:
         set_flash(request, f"Couldn't delete that product: {exc.message}", "error")

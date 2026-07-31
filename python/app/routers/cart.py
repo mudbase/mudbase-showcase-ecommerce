@@ -13,7 +13,7 @@ from app.context import build_base_context
 from app.mudbase_client import MudbaseApiError
 from app.services import carts as carts_service
 from app.services import products as products_service
-from app.session import get_session_user, get_valid_access_token, set_flash
+from app.session import call_with_reauth, get_session_user, get_valid_access_token, set_flash
 from app.templates_env import templates
 
 router = APIRouter()
@@ -39,7 +39,7 @@ async def cart_page(request: Request) -> HTMLResponse | RedirectResponse:
         return guard
     user_id, token = guard
 
-    cart = await carts_service.get_cart(user_id, access_token=token)
+    cart, _token = await call_with_reauth(request, token, lambda t: carts_service.get_cart(user_id, access_token=t))
     context = await build_base_context(request)
     context["cart"] = cart
     return templates.TemplateResponse(request=request, name="cart.html", context=context)
@@ -57,7 +57,9 @@ async def cart_add(
     user_id, token = guard
 
     try:
-        product = await products_service.get_product_by_id(product_id, access_token=token)
+        product, token = await call_with_reauth(
+            request, token, lambda t: products_service.get_product_by_id(product_id, access_token=t)
+        )
     except MudbaseApiError:
         product = None
     if product is None:
@@ -65,15 +67,19 @@ async def cart_add(
         return RedirectResponse("/", status_code=303)
 
     try:
-        await carts_service.add_item(
-            user_id,
-            product_id=product.id,
-            name=product.name,
-            price_cents=product.price_cents,
-            currency=product.currency,
-            image_url=product.image_url,
-            quantity=max(1, quantity),
-            access_token=token,
+        await call_with_reauth(
+            request,
+            token,
+            lambda t: carts_service.add_item(
+                user_id,
+                product_id=product.id,
+                name=product.name,
+                price_cents=product.price_cents,
+                currency=product.currency,
+                image_url=product.image_url,
+                quantity=max(1, quantity),
+                access_token=t,
+            ),
         )
         set_flash(request, f"Added {product.name} to your cart.", "success")
     except MudbaseApiError as exc:
@@ -94,7 +100,11 @@ async def cart_update(
     user_id, token = guard
 
     try:
-        await carts_service.update_quantity(user_id, product_id=product_id, quantity=quantity, access_token=token)
+        await call_with_reauth(
+            request,
+            token,
+            lambda t: carts_service.update_quantity(user_id, product_id=product_id, quantity=quantity, access_token=t),
+        )
     except MudbaseApiError as exc:
         set_flash(request, f"Couldn't update your cart: {exc.message}", "error")
     return RedirectResponse("/cart", status_code=303)
@@ -108,7 +118,9 @@ async def cart_remove(request: Request, product_id: Annotated[str, Form()]) -> R
     user_id, token = guard
 
     try:
-        await carts_service.remove_item(user_id, product_id=product_id, access_token=token)
+        await call_with_reauth(
+            request, token, lambda t: carts_service.remove_item(user_id, product_id=product_id, access_token=t)
+        )
     except MudbaseApiError as exc:
         set_flash(request, f"Couldn't update your cart: {exc.message}", "error")
     return RedirectResponse("/cart", status_code=303)

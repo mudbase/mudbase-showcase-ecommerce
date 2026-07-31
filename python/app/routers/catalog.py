@@ -8,7 +8,7 @@ from fastapi.responses import HTMLResponse
 from app.context import build_base_context
 from app.mudbase_client import MudbaseApiError
 from app.services import products as products_service
-from app.session import ensure_anonymous_session, get_valid_access_token
+from app.session import call_with_reauth, ensure_anonymous_session, get_valid_access_token
 from app.templates_env import templates
 
 router = APIRouter()
@@ -23,7 +23,12 @@ async def catalog_index(request: Request, category: str | None = None) -> HTMLRe
         # Fetched once, unfiltered, so the category pill list always shows every
         # category regardless of the current selection (rather than collapsing to
         # just the selected one, as it would if derived from an already-filtered list).
-        all_active = await products_service.list_active_products(access_token=token)
+        if token:
+            all_active, _token = await call_with_reauth(
+                request, token, lambda t: products_service.list_active_products(access_token=t)
+            )
+        else:
+            all_active = await products_service.list_active_products(access_token=None)
         categories = sorted({p.category for p in all_active if p.category})
         products = [p for p in all_active if not category or p.category == category]
         load_error: str | None = None
@@ -49,7 +54,12 @@ async def product_detail(request: Request, slug: str) -> HTMLResponse:
     token = await get_valid_access_token(request)
 
     try:
-        product = await products_service.get_product_by_slug(slug, access_token=token)
+        if token:
+            product, _token = await call_with_reauth(
+                request, token, lambda t: products_service.get_product_by_slug(slug, access_token=t)
+            )
+        else:
+            product = await products_service.get_product_by_slug(slug, access_token=None)
     except MudbaseApiError:
         product = None
 

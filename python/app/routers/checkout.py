@@ -21,7 +21,7 @@ from app.services import carts as carts_service
 from app.services import orders as orders_service
 from app.services import payments as payments_service
 from app.services.payments import PaymentLinkFailed
-from app.session import get_session_user, get_valid_access_token, set_flash
+from app.session import call_with_reauth, get_session_user, get_valid_access_token, set_flash
 from app.templates_env import templates
 
 router = APIRouter()
@@ -39,7 +39,7 @@ async def checkout_page(request: Request) -> HTMLResponse | RedirectResponse:
     if not token:
         return RedirectResponse("/login?next=/checkout", status_code=303)
 
-    cart = await carts_service.get_cart(user.id, access_token=token)
+    cart, _token = await call_with_reauth(request, token, lambda t: carts_service.get_cart(user.id, access_token=t))
     context = await build_base_context(request)
     context.update({"cart": cart, "errors": {}, "form_error": None})
     return templates.TemplateResponse(request=request, name="checkout.html", context=context)
@@ -63,7 +63,7 @@ async def checkout_submit(
     if not token:
         return RedirectResponse("/login?next=/checkout", status_code=303)
 
-    cart = await carts_service.get_cart(user.id, access_token=token)
+    cart, token = await call_with_reauth(request, token, lambda t: carts_service.get_cart(user.id, access_token=t))
 
     async def _rerender(errors: dict[str, str], form_error: str | None, status_code: int) -> HTMLResponse:
         context = await build_base_context(request)
@@ -89,13 +89,21 @@ async def checkout_submit(
         errors = {str(err["loc"][0]): err["msg"] for err in exc.errors() if err["loc"]}
         return await _rerender(errors, None, 422)
 
-    order = await orders_service.create_order(
-        user_id=user.id,
-        items=cart.items,
-        subtotal_cents=cart.subtotal_cents,
-        shipping_address=address,
-        access_token=token,
-    )
+    try:
+        order, token = await call_with_reauth(
+            request,
+            token,
+            lambda t: orders_service.create_order(
+                user_id=user.id,
+                items=cart.items,
+                subtotal_cents=cart.subtotal_cents,
+                shipping_address=address,
+                access_token=t,
+            ),
+        )
+    except MudbaseApiError as exc:
+        logger.warning("Order creation failed for user %s: %s", user.id, exc.message)
+        return await _rerender({}, f"Couldn't place your order: {exc.message}", 502)
 
     redirect_url = f"{request.base_url}orders/{order.id}"
     result = await payments_service.create_order_payment_link(
@@ -107,13 +115,25 @@ async def checkout_submit(
     if isinstance(result, PaymentLinkFailed):
         if result.reason == "kyc_required":
             try:
-                await orders_service.revert_to_pending(order.id, access_token=token)
+                await call_with_reauth(
+                    request, token, lambda t: orders_service.revert_to_pending(order.id, access_token=t)
+                )
             except MudbaseApiError as exc:
                 logger.warning("Couldn't revert order %s to pending after KYC block: %s", order.id, exc.message)
         return await _rerender({}, result.message, 502)
 
-    await orders_service.attach_payment_link(order.id, result.token, access_token=token)
-    await carts_service.clear_cart(user.id, access_token=token)
+    try:
+        _order, token = await call_with_reauth(
+            request, token, lambda t: orders_service.attach_payment_link(order.id, result.token, access_token=t)
+        )
+        await call_with_reauth(request, token, lambda t: carts_service.clear_cart(user.id, access_token=t))
+    except MudbaseApiError as exc:
+        # The payment link itself was already created successfully (it's the
+        # part of this flow the customer actually depends on) — a failure to
+        # persist the link token onto the order or clear the cart afterward
+        # is logged, not surfaced, so a Mudbase hiccup here doesn't strand a
+        # paying customer on an error page.
+        logger.warning("Post-payment-link bookkeeping failed for order %s: %s", order.id, exc.message)
     return RedirectResponse(f"/checkout/{result.token}", status_code=303)
 
 

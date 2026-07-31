@@ -7,12 +7,24 @@ memory/localStorage for its own direct browser-to-Mudbase calls).
 Refresh-on-demand mirrors web/src/lib/mudbase-server.ts's margin-based
 refresh, but per end-user session rather than a single shared merchant
 session — every logged-in visitor here refreshes their own token.
+
+Two refresh paths exist:
+  1. `get_valid_access_token` — proactive, margin-based: refreshes before a
+     token is handed out if it is within `_REFRESH_MARGIN_SECONDS` of the
+     expiry this app recorded locally when the token was issued.
+  2. `call_with_reauth` — reactive: covers the case a proactively-"valid"
+     token is still rejected with a 401 by the real API (revoked elsewhere,
+     clock skew between this process and Mudbase, or any other reason the
+     local expiry bookkeeping didn't predict). It forces a refresh via the
+     stored refresh token and retries the failed call exactly once with the
+     new token, rather than letting a raw 401/error surface to the user.
 """
 
 import asyncio
 import logging
 import time
-from typing import Any
+from collections.abc import Awaitable, Callable
+from typing import Any, TypeVar
 
 from fastapi import Request
 from pydantic import BaseModel
@@ -20,6 +32,8 @@ from pydantic import BaseModel
 from app.mudbase_client import MudbaseApiError, create_anonymous_session_sync, refresh_sync
 
 logger = logging.getLogger(__name__)
+
+T = TypeVar("T")
 
 _USER_KEY = "user"
 _TOKEN_KEY = "token"
@@ -82,18 +96,12 @@ def get_session_user(request: Request) -> SessionUser | None:
     return SessionUser(**data)
 
 
-async def get_valid_access_token(request: Request) -> str | None:
-    """Returns a live access token for the current session, refreshing it
-    first if it is within `_REFRESH_MARGIN_SECONDS` of expiry. Clears the
-    session and returns None if there is no session or refresh fails."""
-    token: str | None = request.session.get(_TOKEN_KEY)
-    if not token:
-        return None
-
-    expires_at = request.session.get(_EXPIRES_KEY, 0.0)
-    if expires_at - _REFRESH_MARGIN_SECONDS > time.time():
-        return token
-
+async def force_refresh_access_token(request: Request) -> str | None:
+    """Unconditionally exchanges the session's stored refresh token for a new
+    access/refresh pair, bypassing the expiry-margin check `get_valid_access_
+    token` uses. Persists the new pair into the session on success. Clears
+    the session and returns None if there is no refresh token to use, or the
+    refresh call itself fails (refresh token expired/revoked too)."""
     refresh_token = request.session.get(_REFRESH_KEY)
     if not refresh_token:
         clear_session(request)
@@ -116,6 +124,47 @@ async def get_valid_access_token(request: Request) -> str | None:
     request.session[_REFRESH_KEY] = new_refresh
     request.session[_EXPIRES_KEY] = time.time() + float(result.get("expiresIn") or _DEFAULT_EXPIRES_IN_SECONDS)
     return new_token
+
+
+async def get_valid_access_token(request: Request) -> str | None:
+    """Returns a live access token for the current session, refreshing it
+    first if it is within `_REFRESH_MARGIN_SECONDS` of expiry. Clears the
+    session and returns None if there is no session or refresh fails."""
+    token: str | None = request.session.get(_TOKEN_KEY)
+    if not token:
+        return None
+
+    expires_at = request.session.get(_EXPIRES_KEY, 0.0)
+    if expires_at - _REFRESH_MARGIN_SECONDS > time.time():
+        return token
+
+    return await force_refresh_access_token(request)
+
+
+async def call_with_reauth(
+    request: Request,
+    token: str,
+    operation: Callable[[str], Awaitable[T]],
+) -> tuple[T, str]:
+    """Runs `operation(token)`. If it raises a `MudbaseApiError` with a 401
+    status — the server rejected a token our local expiry bookkeeping thought
+    was still good — forces a refresh via the stored refresh token and retries
+    `operation` exactly once with the new token, instead of letting the 401
+    surface to the caller. Returns the result alongside whichever token ended
+    up succeeding, so callers threading a token across several calls in the
+    same request can keep using the refreshed one. Any non-401 error, or a
+    401 that persists after a successful refresh, propagates unchanged."""
+    try:
+        result = await operation(token)
+    except MudbaseApiError as exc:
+        if exc.status_code != 401:
+            raise
+        new_token = await force_refresh_access_token(request)
+        if not new_token:
+            raise
+        result = await operation(new_token)
+        return result, new_token
+    return result, token
 
 
 async def ensure_anonymous_session(request: Request) -> None:

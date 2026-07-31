@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.context import build_base_context
 from app.mudbase_client import MudbaseApiError
 from app.services import orders as orders_service
-from app.session import get_session_user, get_valid_access_token, set_flash
+from app.session import call_with_reauth, get_session_user, get_valid_access_token, set_flash
 from app.templates_env import templates
 
 router = APIRouter()
@@ -25,7 +25,9 @@ async def orders_list(request: Request) -> HTMLResponse | RedirectResponse:
         return RedirectResponse("/login?next=/orders", status_code=303)
 
     try:
-        orders = await orders_service.list_orders_for_user(user.id, access_token=token)
+        orders, _token = await call_with_reauth(
+            request, token, lambda t: orders_service.list_orders_for_user(user.id, access_token=t)
+        )
         load_error: str | None = None
     except MudbaseApiError as exc:
         orders, load_error = [], f"Couldn't load your orders right now: {exc.message}"
@@ -47,7 +49,9 @@ async def order_detail(request: Request, order_id: str) -> HTMLResponse | Redire
         return RedirectResponse(f"/login?next=/orders/{order_id}", status_code=303)
 
     try:
-        order = await orders_service.get_order(order_id, access_token=token)
+        order, _token = await call_with_reauth(
+            request, token, lambda t: orders_service.get_order(order_id, access_token=t)
+        )
     except MudbaseApiError:
         order = None
 
