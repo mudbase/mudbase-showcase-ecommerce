@@ -14,16 +14,3 @@ export interface Product extends Document {
   isActive: boolean
   sellerId?: string
 }
-
-export interface ProductFormValues {
-  name: string
-  slug: string
-  description: string
-  priceCents: number
-  compareAtPriceCents?: number
-  currency: string
-  imageUrl: string
-  category: string
-  stock: number
-  isActive: boolean
-}
