@@ -108,12 +108,19 @@ export class MudbaseClient {
   private baseUrl: string
   private projectId: string
   private token: string | null = null
+  private refreshToken: string | null = null
+  // Refresh tokens rotate on every use (single-use, platform-enforced) - if two requests both
+  // hit a 401 at once, only the first refresh call may succeed since the second would present
+  // an already-rotated-away token. This promise lets concurrent callers await the same in-flight
+  // refresh instead of racing each other into failure.
+  private refreshInFlight: Promise<string> | null = null
 
   constructor(config: MudbaseConfig) {
     this.baseUrl = config.baseUrl ?? MUDBASE_BASE_URL
     this.projectId = config.projectId
     if (typeof window !== "undefined") {
       this.token = localStorage.getItem("mudbase_token")
+      this.refreshToken = localStorage.getItem("mudbase_refresh_token")
     }
   }
 
@@ -121,17 +128,25 @@ export class MudbaseClient {
     return this.projectId
   }
 
-  setToken(token: string): void {
+  setToken(token: string, refreshToken?: string): void {
     this.token = token
     if (typeof window !== "undefined") {
       localStorage.setItem("mudbase_token", token)
+    }
+    if (refreshToken) {
+      this.refreshToken = refreshToken
+      if (typeof window !== "undefined") {
+        localStorage.setItem("mudbase_refresh_token", refreshToken)
+      }
     }
   }
 
   clearToken(): void {
     this.token = null
+    this.refreshToken = null
     if (typeof window !== "undefined") {
       localStorage.removeItem("mudbase_token")
+      localStorage.removeItem("mudbase_refresh_token")
     }
   }
 
@@ -139,11 +154,37 @@ export class MudbaseClient {
     return this.token
   }
 
+  private async refreshAccessToken(): Promise<string> {
+    if (this.refreshInFlight) return this.refreshInFlight
+
+    this.refreshInFlight = (async () => {
+      if (!this.refreshToken) throw new MudbaseError("No refresh token available", 401)
+      const res = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken: this.refreshToken }),
+      })
+      if (!res.ok) {
+        this.clearToken()
+        throw new MudbaseError("Session expired - please log in again", 401)
+      }
+      const body = (await res.json()) as { token: string; refreshToken: string }
+      this.setToken(body.token, body.refreshToken)
+      return body.token
+    })()
+
+    try {
+      return await this.refreshInFlight
+    } finally {
+      this.refreshInFlight = null
+    }
+  }
+
   private async request<T>(
     method: string,
     path: string,
     body?: unknown,
-    options: { auth?: boolean; formData?: FormData } = {},
+    options: { auth?: boolean; formData?: FormData; retriedAfterRefresh?: boolean } = {},
   ): Promise<T> {
     const headers: Record<string, string> = {}
     if (!options.formData) {
@@ -158,6 +199,11 @@ export class MudbaseClient {
       headers,
       body: options.formData ? options.formData : body !== undefined ? JSON.stringify(body) : undefined,
     })
+
+    if (res.status === 401 && options.auth !== false && this.refreshToken && !options.retriedAfterRefresh) {
+      await this.refreshAccessToken()
+      return this.request<T>(method, path, body, { ...options, retriedAfterRefresh: true })
+    }
 
     if (!res.ok) {
       const error = (await res.json().catch(() => ({ error: res.statusText }))) as { error?: string; message?: string }
