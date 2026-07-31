@@ -93,9 +93,10 @@ shims where SwiftUI itself differs — see `Support/PlatformCompat.swift`).
 ## What's implemented
 
 - **Auth** — email/password login and self-signup (always `customer`, no role picker — see
-  "Provisioning" below), session bootstrap from Keychain on launch with one-shot refresh-on-expiry,
-  logout. Token pair stored in the Keychain via `Support/KeychainTokenStore.swift` — never
-  `UserDefaults`.
+  "Provisioning" below), session bootstrap from Keychain on launch, logout. Token pair stored in
+  the Keychain via `Support/KeychainTokenStore.swift` — never `UserDefaults`. A 401 from an
+  expired access token is transparently refreshed and retried once, for *every* authenticated
+  call in the app (not just launch bootstrap) — see `Networking/AccessTokenCoordinator.swift`.
 - **Catalog** — product grid with category filter (re-fetches per category, matching the web app),
   product detail with an image carousel (main image + `galleryJson` gallery) and an add-to-cart
   stepper.
@@ -139,28 +140,29 @@ before being used:
 - `MultiRoleFeatureAPI.registerWithRole(role:registerWithRoleRequest:)`
 - `DataAPI.listData` / `.getData` / `.createData` / `.updateData` / `.deleteData`
 
-Two real gaps in the generated SDK shaped this app's auth flow, both documented in code comments
-at their call sites (`Networking/AuthGateway.swift`):
+The SDK was regenerated since this app was first built, closing two of the three gaps originally
+documented here. What's left, and what changed, is documented in code comments at the call sites
+(`Networking/AuthGateway.swift`):
 
-- **`registerWithRole` returns `Void`.** The OpenAPI spec behind `POST /api/auth/local/signup/{role}`
-  doesn't give the generator a single typed success body (the shape varies with
-  `requireEmailVerification`), so the generated method just discards the response. This app follows
-  registration with a real `loginLocalUser` call to obtain an actual token — see
-  `SessionStore.register`. If the project has email verification enabled, that login attempt fails
-  with `EMAIL_VERIFICATION_REQUIRED`, and the register screen shows "check your email, then sign
-  in" instead of a token it never actually received.
-- **`RegisterWithRoleRequest` has no `agreedToTerms` field**, even though Mudbase's registration
-  validator requires it for a direct signup call (per this app's own build brief). The generated
-  model only has `email`/`password`/`firstName`/`lastName`/`projectId`. The Terms & Privacy checkbox
-  is still enforced client-side (the Create Account button stays disabled until it's checked) but
-  there is no way to transmit that field through the typed SDK call as generated — a real project
-  using this SDK would need to regenerate it against an OpenAPI spec that documents the field, or
-  fall back to a raw `URLRequest` for this one call.
-- **`LoginLocalUser200ResponseUser` has no `customRole`.** Only `GetLocalSession200Response.user`
-  (typed as a raw `JSONValue`, not a fixed struct — the generator can't know ahead of time what
-  custom roles a project's Multi-Role feature defines) carries it. Every login and registration in
-  this app is followed by a `getLocalSession` call for exactly this reason —
-  `AuthGateway.currentUser()`.
+- **`registerWithRole` now returns a typed `RegisterWithRole201Response`** (previously `Void` — the
+  OpenAPI spec behind `POST /api/auth/local/signup/{role}` didn't give the generator a single
+  typed success body, since the shape varies with `requireEmailVerification`). When verification
+  isn't required, that response carries the token pair *and* the user (`RegisterWithRole201ResponseUser`,
+  which — unlike `LoginLocalUser200ResponseUser` — already includes `customRole`) directly, so
+  `SessionStore.register` no longer needs a follow-up `login` + `getLocalSession` round trip to
+  obtain a real session; it trusts the register response itself. The `EMAIL_VERIFICATION_REQUIRED`
+  path (register screen shows "check your email, then sign in") is unchanged, driven now by the
+  response's own `requireVerification` flag.
+- **`RegisterWithRoleRequest` now has an `agreedToTerms` field**, matching Mudbase's registration
+  validator (which requires it for a direct signup call). The Terms & Privacy checkbox's
+  client-side-enforced value (`RegisterViewModel.agreedToTerms`) is now actually transmitted through
+  `AuthGateway.registerCustomer` — previously it was validated client-side only, with no way to send
+  it through the typed SDK call at all.
+- **`LoginLocalUser200ResponseUser` still has no `customRole`** — that gap remains. Only
+  `GetLocalSession200Response.user` (typed as a raw `JSONValue`, not a fixed struct — the generator
+  can't know ahead of time what custom roles a project's Multi-Role feature defines) carries it, so
+  every *login* (not register, now — see above) is still followed by a `getLocalSession` call for
+  exactly this reason — `AuthGateway.currentUser()`.
 
 ## Payments
 
@@ -212,10 +214,11 @@ anything specific to the web implementation:
 - **The SwiftPM package-identity collision** described in "Setup" step 2 above — a genuine SwiftPM
   constraint (identity = last path component, no override), not a bug in this app's manifest, but
   worth knowing about if you ever change how the SDK dependency is referenced.
-- **The generated SDK gaps** described in "The Mudbase Swift SDK, exactly as generated" above
-  (`registerWithRole` returning `Void`, no `agreedToTerms` field, no `customRole` on the login
-  response) shape `SessionStore`'s register/login flow more than they would if the SDK were
-  regenerated against a fuller OpenAPI spec.
+- **The one remaining generated SDK gap** described in "The Mudbase Swift SDK, exactly as
+  generated" above — no `customRole` on the *login* response — still shapes `SessionStore.login`
+  (a `getLocalSession` follow-up call). The `registerWithRole` returning `Void` and the missing
+  `agreedToTerms` field were both closed by a later SDK regeneration; `SessionStore.register` no
+  longer needs its own follow-up call as a result.
 - **Certificate pinning and biometric auth are out of scope for this reference build.** The
   project's own security rules call for both on a production mobile app; they're omitted here to
   keep this a focused reimplementation of the same reference storefront the web version covers, not

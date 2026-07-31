@@ -21,28 +21,34 @@ final class SessionStore: ObservableObject {
 
     var isSignedIn: Bool { user != nil }
 
-    /// Called once at app launch. Restores a stored token, validating it against the session
-    /// endpoint; on a 401 (expired access token) attempts exactly one refresh before giving up.
+    /// Called once at app launch. Configures the shared `AccessTokenCoordinator` unconditionally
+    /// (even when there's no stored session yet) — see that type's doc comment — since it must be
+    /// ready before *any* authenticated call in the app, including ones made later this same
+    /// session after a fresh login/register, not just this bootstrap's own restore attempt. Then
+    /// restores a stored token pair (if any), validating it against the session endpoint; a 401
+    /// (expired access token) is transparently refreshed and retried once by the coordinator.
     func bootstrap() async {
         defer { isBootstrapping = false }
+        await AccessTokenCoordinator.shared.configure(authGateway: authGateway, tokenStore: tokenStore)
+
         guard let stored = tokenStore.load() else { return }
-
         MudbaseSDKBootstrap.setAccessToken(stored.accessToken)
-        do {
-            user = try await authGateway.currentUser()
-            return
-        } catch {
-            // Fall through to a single refresh attempt below.
-        }
 
+        let gateway = authGateway
         do {
-            let refreshed = try await authGateway.refresh(refreshToken: stored.refreshToken)
-            tokenStore.save(.init(accessToken: refreshed.accessToken, refreshToken: refreshed.refreshToken))
-            MudbaseSDKBootstrap.setAccessToken(refreshed.accessToken)
-            user = try await authGateway.currentUser()
+            user = try await AccessTokenCoordinator.shared.perform { () async throws(ErrorResponse) in
+                try await gateway.currentUser()
+            }
         } catch {
-            tokenStore.clear()
-            MudbaseSDKBootstrap.clearAccessToken()
+            // Only treat this as "the session is actually invalid" for a 401 that survived the
+            // coordinator's own refresh attempt (it only refreshes 401s, and already clears the
+            // stored session itself when that refresh fails) — anything else (offline, a
+            // transient 5xx) is left alone so the still-good token in the Keychain gets another
+            // chance on the next launch instead of forcing a real sign-out over a network blip.
+            if case ErrorResponse.error(401, _, _, _) = error {
+                tokenStore.clear()
+                MudbaseSDKBootstrap.clearAccessToken()
+            }
             user = nil
         }
     }
@@ -66,20 +72,31 @@ final class SessionStore: ObservableObject {
     }
 
     /// Role is always `customer` — self-signup never exposes a role picker (`seller` accounts are
-    /// provisioned out-of-band). See `AuthGateway.registerCustomer` for why this follows up with a
-    /// real login call instead of trusting a token from the signup response itself.
-    func register(email: String, password: String, firstName: String, lastName: String) async -> RegisterOutcome {
+    /// provisioned out-of-band). The regenerated SDK's `registerWithRole` now returns the token
+    /// pair and the user (with `customRole`) directly in the happy path, so this trusts that
+    /// response instead of following up with a separate `login` + `getLocalSession` round trip —
+    /// see `AuthGateway.registerCustomer` for the full reasoning.
+    func register(email: String, password: String, firstName: String, lastName: String, agreedToTerms: Bool) async -> RegisterOutcome {
         do {
-            try await authGateway.registerCustomer(email: email, password: password, firstName: firstName, lastName: lastName)
-        } catch {
-            return .failure(message: MudbaseAPIError.map(error).message)
-        }
-
-        let loginResult = await login(email: email, password: password)
-        switch loginResult {
-        case .success:
+            let result = try await authGateway.registerCustomer(
+                email: email,
+                password: password,
+                firstName: firstName,
+                lastName: lastName,
+                agreedToTerms: agreedToTerms
+            )
+            if result.requiresVerification {
+                return .verificationRequired(message: "Account created — check your email to verify it, then sign in.")
+            }
+            guard let session = result.session, let registeredUser = result.user else {
+                return .failure(message: "Account created, but we couldn't sign you in automatically. Please sign in.")
+            }
+            tokenStore.save(.init(accessToken: session.accessToken, refreshToken: session.refreshToken))
+            MudbaseSDKBootstrap.setAccessToken(session.accessToken)
+            user = registeredUser
             return .signedIn
-        case .failure(let displayable):
+        } catch {
+            let displayable = MudbaseAPIError.map(error)
             if displayable.code == "EMAIL_VERIFICATION_REQUIRED" {
                 return .verificationRequired(message: "Account created — check your email to verify it, then sign in.")
             }

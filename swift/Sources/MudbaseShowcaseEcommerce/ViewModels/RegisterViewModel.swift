@@ -42,7 +42,7 @@ final class RegisterViewModel: ObservableObject {
         infoMessage = nil
         defer { isSubmitting = false }
 
-        switch await sessionStore.register(email: email, password: password, firstName: firstName, lastName: lastName) {
+        switch await sessionStore.register(email: email, password: password, firstName: firstName, lastName: lastName, agreedToTerms: agreedToTerms) {
         case .signedIn:
             return true
         case .verificationRequired(let message):

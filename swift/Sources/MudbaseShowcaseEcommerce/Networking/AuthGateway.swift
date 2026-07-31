@@ -12,25 +12,52 @@ struct AuthGateway {
         let refreshToken: String
     }
 
+    struct RegisterResult {
+        /// True when the project requires email verification before a session is issued — in
+        /// that case `session`/`user` are both `nil` and the caller shows a "check your email"
+        /// message instead.
+        let requiresVerification: Bool
+        let session: LoginResult?
+        let user: AppUser?
+    }
+
     /// `POST /api/auth/local/signup/{role}` — always `role: "customer"` from this app's own
     /// register screen (self-signup never exposes a role picker; `seller` accounts are provisioned
-    /// out-of-band, matching `web/README.md` "Provisioning"). Returns `Void` per the generated
-    /// SDK's `registerWithRole` — the OpenAPI spec behind this endpoint doesn't give the generator
-    /// a typed success body (it varies with `requireEmailVerification`), so this app follows
-    /// registration with an explicit `login` call to obtain a real token. See README "Known
-    /// limitations" for the same reason `agreedToTerms` (which the platform's validator requires
-    /// for a *direct* signup call) has no home in the generated `RegisterWithRoleRequest` model.
-    func registerCustomer(email: String, password: String, firstName: String, lastName: String) async throws(ErrorResponse) {
-        try await MultiRoleFeatureAPI.registerWithRole(
+    /// out-of-band, matching `web/README.md` "Provisioning"). `agreedToTerms` is enforced
+    /// client-side by the register screen's own validation, and is now also transmitted to the
+    /// server: the regenerated SDK's `RegisterWithRoleRequest` gained this field (the platform's
+    /// registration validator requires it for a *direct* signup call), which previously had no
+    /// home in the generated model at all.
+    ///
+    /// `registerWithRole` also now returns a typed `RegisterWithRole201Response` (previously
+    /// `Void` — the OpenAPI spec didn't give the generator a single success body because the shape
+    /// varies with `requireEmailVerification`). When verification isn't required, that response
+    /// carries the token pair *and* the user (including `customRole`) directly, so this no longer
+    /// needs a follow-up `login` + `getLocalSession` round trip to obtain a real session — see
+    /// `SessionStore.register`.
+    func registerCustomer(email: String, password: String, firstName: String, lastName: String, agreedToTerms: Bool) async throws(ErrorResponse) -> RegisterResult {
+        let response = try await MultiRoleFeatureAPI.registerWithRole(
             role: AppRole.customer.rawValue,
             registerWithRoleRequest: RegisterWithRoleRequest(
                 email: email,
                 password: password,
                 firstName: firstName,
                 lastName: lastName,
-                projectId: projectId
+                projectId: projectId,
+                agreedToTerms: agreedToTerms
             )
         )
+        if response.requireVerification == true {
+            return RegisterResult(requiresVerification: true, session: nil, user: nil)
+        }
+        guard let token = response.token,
+              let refreshToken = response.refreshToken,
+              let responseUser = response.user,
+              let user = AppUser(registered: responseUser)
+        else {
+            throw ErrorResponse.error(-2, nil, nil, MudbaseClientError.missingTokenInLoginResponse)
+        }
+        return RegisterResult(requiresVerification: false, session: LoginResult(accessToken: token, refreshToken: refreshToken), user: user)
     }
 
     /// `POST /api/auth/local/login`.

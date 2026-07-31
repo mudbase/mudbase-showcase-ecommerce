@@ -50,6 +50,17 @@ let package = Package(
             ],
             path: "Sources/MudbaseShowcaseEcommerce"
         ),
+        // Standalone, headless verification against the real, live `cloud.mudbase.dev` project —
+        // `@testable import` is the only way for a separate SPM target to reach this app's own
+        // internal `Services`/`Networking`/`Models` types (Swift access control is per-module, not
+        // per-package, unlike e.g. Dart's `../mobile-flutter/tool/manual_test.dart`, which needed
+        // no such mechanism). Disabled by default — see `ManualLiveFlowTests.swift` — so a plain
+        // `swift test` never makes network calls or writes real documents on its own.
+        .testTarget(
+            name: "ManualLiveFlowTests",
+            dependencies: ["MudbaseShowcaseEcommerce"],
+            path: "Tests/ManualLiveFlowTests"
+        ),
     ],
     swiftLanguageModes: [.v5]
 )

@@ -37,4 +37,18 @@ struct AppUser: Sendable, Equatable, Identifiable {
         self.emailVerified = dict["emailVerified"]?.boolValue ?? false
         self.role = (dict["customRole"]?.stringValue).flatMap(AppRole.init(rawValue:))
     }
+
+    /// From `RegisterWithRole201Response.user` — the regenerated SDK's typed struct for that
+    /// field, which (unlike `LoginLocalUser200ResponseUser`) already carries `customRole`. Used
+    /// by `SessionStore.register` to build the signed-in user directly from the register
+    /// response instead of a follow-up `getLocalSession` call — see `AuthGateway.registerCustomer`.
+    init?(registered: RegisterWithRole201ResponseUser) {
+        guard let id = registered.id, let email = registered.email else { return nil }
+        self.id = id
+        self.email = email
+        self.firstName = registered.firstName ?? ""
+        self.lastName = registered.lastName ?? ""
+        self.emailVerified = registered.emailVerified ?? false
+        self.role = registered.customRole.flatMap(AppRole.init(rawValue:))
+    }
 }

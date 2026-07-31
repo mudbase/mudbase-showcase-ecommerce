@@ -24,20 +24,31 @@ struct CollectionsGateway {
         } else {
             filterString = Self.encodeFilter(filter)
         }
-        let response = try await DataAPI.listData(
-            projectId: projectId,
-            collectionId: collectionId,
-            page: page,
-            limit: limit,
-            sort: sort,
-            filter: filterString
-        )
+        let projectId = self.projectId
+        let collectionId = self.collectionId
+        // Routed through `AccessTokenCoordinator` so an access token that expired mid-session
+        // transparently refreshes and retries once instead of surfacing a raw 401 — see that
+        // type's doc comment for why this can't just be a bare `DataAPI.listData` call.
+        let response = try await AccessTokenCoordinator.shared.perform { () async throws(ErrorResponse) in
+            try await DataAPI.listData(
+                projectId: projectId,
+                collectionId: collectionId,
+                page: page,
+                limit: limit,
+                sort: sort,
+                filter: filterString
+            )
+        }
         let documents = (response.data ?? []).compactMap(MudbaseDocument.init(listItem:))
         return ListResult(documents: documents, pagination: response.pagination)
     }
 
     func get(documentId: String) async throws(ErrorResponse) -> MudbaseDocument {
-        let response = try await DataAPI.getData(projectId: projectId, collectionId: collectionId, documentId: documentId)
+        let projectId = self.projectId
+        let collectionId = self.collectionId
+        let response = try await AccessTokenCoordinator.shared.perform { () async throws(ErrorResponse) in
+            try await DataAPI.getData(projectId: projectId, collectionId: collectionId, documentId: documentId)
+        }
         guard let data = response.data, let document = MudbaseDocument(rawDocument: data) else {
             throw ErrorResponse.error(-2, nil, nil, MudbaseClientError.malformedSessionUser)
         }
@@ -46,7 +57,12 @@ struct CollectionsGateway {
 
     @discardableResult
     func create(fields: [String: JSONValue?]) async throws(ErrorResponse) -> MudbaseDocument {
-        let response = try await DataAPI.createData(projectId: projectId, collectionId: collectionId, body: .object(fields))
+        let projectId = self.projectId
+        let collectionId = self.collectionId
+        let body = JSONValue.object(fields)
+        let response = try await AccessTokenCoordinator.shared.perform { () async throws(ErrorResponse) in
+            try await DataAPI.createData(projectId: projectId, collectionId: collectionId, body: body)
+        }
         guard let data = response.data, let document = MudbaseDocument(rawDocument: data) else {
             throw ErrorResponse.error(-2, nil, nil, MudbaseClientError.malformedSessionUser)
         }
@@ -55,7 +71,12 @@ struct CollectionsGateway {
 
     @discardableResult
     func update(documentId: String, fields: [String: JSONValue?]) async throws(ErrorResponse) -> MudbaseDocument {
-        let response = try await DataAPI.updateData(projectId: projectId, collectionId: collectionId, documentId: documentId, body: .object(fields))
+        let projectId = self.projectId
+        let collectionId = self.collectionId
+        let body = JSONValue.object(fields)
+        let response = try await AccessTokenCoordinator.shared.perform { () async throws(ErrorResponse) in
+            try await DataAPI.updateData(projectId: projectId, collectionId: collectionId, documentId: documentId, body: body)
+        }
         guard let data = response.data, let document = MudbaseDocument(rawDocument: data) else {
             throw ErrorResponse.error(-2, nil, nil, MudbaseClientError.malformedSessionUser)
         }
@@ -63,7 +84,11 @@ struct CollectionsGateway {
     }
 
     func delete(documentId: String) async throws(ErrorResponse) {
-        _ = try await DataAPI.deleteData(projectId: projectId, collectionId: collectionId, documentId: documentId)
+        let projectId = self.projectId
+        let collectionId = self.collectionId
+        _ = try await AccessTokenCoordinator.shared.perform { () async throws(ErrorResponse) in
+            try await DataAPI.deleteData(projectId: projectId, collectionId: collectionId, documentId: documentId)
+        }
     }
 
     /// Encodes a `[String: JSONValue]` filter to the same compact JSON string
