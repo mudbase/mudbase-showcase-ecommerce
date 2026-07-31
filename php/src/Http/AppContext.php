@@ -46,7 +46,17 @@ final class AppContext
 
     public function isSignedIn(): bool
     {
-        return $this->user !== null && ($this->user['isAnonymous'] ?? false) !== true;
+        // `GET /api/auth/local/session` (see MudbaseClient::fetchSessionUser()) does not reliably
+        // return an `isAnonymous` key at all for anonymous sessions in practice — confirmed against
+        // the live API, the key is simply absent from the response body — so a bare
+        // `($this->user['isAnonymous'] ?? false) !== true` check treats every anonymous guest as
+        // signed in (missing key -> false -> "not anonymous"). `customRole` is the reliable signal
+        // instead: Mudbase only ever assigns a customRole ("customer"/"seller") to a real
+        // registered account; anonymous sessions always come back with `customRole: null`. Kept the
+        // `isAnonymous` check too as defense in depth for any response shape that does include it.
+        return $this->user !== null
+            && ($this->user['isAnonymous'] ?? false) !== true
+            && ($this->user['customRole'] ?? null) !== null;
     }
 
     public function isCustomer(): bool

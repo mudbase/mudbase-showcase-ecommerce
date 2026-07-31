@@ -105,19 +105,22 @@ final class CheckoutController
         $result = $ctx->paymentLinkProxy->createForOrder($orderId, $amount, self::CURRENCY, self::NETWORK, $redirectUrl);
 
         if (!$result['ok']) {
-            if ($result['reason'] === 'kyc_required') {
-                try {
-                    $ctx->mudbase->updateDocument($ctx->ordersCollectionId, $orderId, ['orderStatus' => 'pending']);
-                } catch (MudbaseApiError) {
-                    // Order still exists as "awaiting_payment" — surfacing the KYC message matters
-                    // more than this secondary status tidy-up succeeding.
-                }
-                Flash::set('error', $result['message']);
-                Response::redirect("/orders/{$orderId}");
+            // Every payment-link failure reason (kyc_required, the merchant-auth/502 case the proxy
+            // reports as "unknown", or "unreachable") is handled identically here: the order in
+            // `orders` already exists and was already paid for by nothing yet, so it must stay
+            // visible to the shopper rather than being silently orphaned. Redirecting back to
+            // /checkout instead would also be a real duplicate-order bug — the cart is only cleared
+            // on the success path below, so a shopper who retried checkout from there would create a
+            // second order for the same items on top of the first.
+            try {
+                $ctx->mudbase->updateDocument($ctx->ordersCollectionId, $orderId, ['orderStatus' => 'pending']);
+            } catch (MudbaseApiError) {
+                // Order still exists as "awaiting_payment" — surfacing the payment failure message
+                // matters more than this secondary status tidy-up succeeding.
             }
-
+            $ctx->cart->clear($ctx->user);
             Flash::set('error', $result['message']);
-            Response::redirect('/checkout');
+            Response::redirect("/orders/{$orderId}");
         }
 
         $token = (string) ($result['link']['token'] ?? '');
