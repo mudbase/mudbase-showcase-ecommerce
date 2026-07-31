@@ -28,10 +28,11 @@ builder.Services.AddSession(sessionOptions =>
     sessionOptions.IdleTimeout = TimeSpan.FromHours(4);
 });
 
-// Plain HttpClients for the two things the generated SDK can't do: the signup-with-role endpoint
-// (needs an `agreedToTerms` field the generated request model doesn't have — see
-// MudbaseAuthService) and the payment-link proxy / public payment-link status read (an entirely
-// separate deployed app and an unauthenticated public endpoint, respectively).
+// Plain HttpClient for the payment-link proxy / public payment-link status read (an entirely
+// separate deployed app and an unauthenticated public endpoint, respectively) and for
+// TokenRefreshHandler's own POST /api/auth/refresh call — deliberately outside the generated SDK's
+// HttpClient pipeline (see TokenRefreshHandler) so a refresh call can never recursively trigger the
+// same 401-retry handler it's part of.
 builder.Services.AddHttpClient(HttpClientNames.MudbaseRaw, client => client.BaseAddress = new Uri(mudbaseOptions.BaseUrl));
 builder.Services.AddHttpClient(HttpClientNames.MudbasePublic, client => client.BaseAddress = new Uri(mudbaseOptions.BaseUrl));
 builder.Services.AddHttpClient(HttpClientNames.PayLinkProxy, client => client.BaseAddress = new Uri(mudbaseOptions.PaymentLinkProxyBaseUrl));
@@ -41,9 +42,14 @@ builder.Services.AddHttpClient(HttpClientNames.PayLinkProxy, client => client.Ba
 // server-to-server API key) — SessionBearerTokenProvider overrides that so each call resolves
 // whichever JWT the *current* browser session's cookie points at. See SessionBearerTokenProvider
 // for the full explanation.
-builder.Host.ConfigureApi((_, _, apiOptions) =>
+builder.Host.ConfigureApi((_, apiOptions) =>
 {
-    apiOptions.AddApiHttpClients(client => client.BaseAddress = new Uri(mudbaseOptions.BaseUrl));
+    // TokenRefreshHandler is attached to every one of the SDK's generated HttpClients here (this
+    // callback runs once per Api's IHttpClientBuilder) so an expired access token is transparently
+    // refreshed and the original request retried once, instead of surfacing a raw 401 to the page.
+    apiOptions.AddApiHttpClients(
+        client => client.BaseAddress = new Uri(mudbaseOptions.BaseUrl),
+        httpClientBuilder => httpClientBuilder.AddHttpMessageHandler<TokenRefreshHandler>());
 
     // DataApi/AuthenticationApi's constructors require a TokenProvider<ApiKeyToken> even though
     // this app never calls an ApiKeyAuth-only endpoint (every call here goes through a per-user
@@ -54,6 +60,7 @@ builder.Host.ConfigureApi((_, _, apiOptions) =>
 });
 
 builder.Services.AddSingleton<MudbaseSessionAccessor>();
+builder.Services.AddTransient<TokenRefreshHandler>();
 builder.Services.AddScoped<MudbaseAuthService>();
 builder.Services.AddScoped<MudbaseDataService>();
 builder.Services.AddScoped<CartService>();

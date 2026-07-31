@@ -117,15 +117,6 @@ including a `seller` customRole account, is permanently a `viewer` system role a
 Product images in this demo are entered as plain URLs rather than uploaded — see
 `Pages/Seller/Products/_ProductForm.cshtml`.
 
-**Registration bypasses the generated SDK for one endpoint.** The generated
-`MultiRoleFeatureApi.RegisterWithRoleAsync` models `POST /api/auth/local/signup/:role`'s request as
-only `email`/`password`/`firstName`/`lastName`/`projectId` (no `agreedToTerms`, which the live
-validator actually requires), and its response as `void` (the OpenAPI spec this SDK was generated
-from left the response schema unspecified). Rather than send a request guaranteed to be rejected, or
-fabricate a nonexistent SDK method, `Services/MudbaseAuthService.RegisterCustomerAsync` calls that
-one endpoint directly via a plain `HttpClient` bound to the same Mudbase base URL, and parses the
-response body itself. Every other Mudbase call in this app goes through the generated SDK.
-
 **The generated SDK's token pipeline assumes one static token per app.** `HostConfiguration.AddTokens`
 + `UseProvider` are built for a server-to-server API key registered once at startup — this app has
 many concurrent browser sessions, each with its own Mudbase JWT (anonymous guest, customer, or
@@ -133,6 +124,15 @@ seller) that changes over the app's lifetime. `Services/SessionBearerTokenProvid
 SDK's `TokenProvider<BearerToken>` to resolve whichever JWT the *current* request's session holds,
 via `IHttpContextAccessor` — see that file's doc comment for the full reasoning. This is the one
 piece of DI plumbing in this app that isn't just "call the generated method"; everything else is.
+
+**Access tokens expire mid-session, transparently.** `Services/TokenRefreshHandler.cs` is a
+`DelegatingHandler` attached to every one of the generated SDK's HttpClients (see `Program.cs`). On
+a `401`, it exchanges the session's stored refresh token for a new access/refresh pair via
+`POST /api/auth/refresh` (through a separate, handler-free `HttpClient` so the refresh call itself
+can never recurse through this same pipeline) and retries the original request once with the new
+token — so a page never surfaces a raw 401 just because the visitor's session token aged out while
+browsing. `Services/MudbaseSessionAccessor.cs` stores the refresh token alongside the access token
+for this to work.
 
 **No realtime seller dashboard.** The reference Next.js app subscribes to Mudbase's Socket.IO
 `db:create`/`db:update` events so new orders appear on the seller dashboard instantly. Porting a

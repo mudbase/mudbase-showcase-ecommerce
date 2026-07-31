@@ -1,4 +1,3 @@
-using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -13,37 +12,31 @@ namespace MudbaseShowcase.Ecommerce.Services;
 /// Everything auth-related: bootstrapping a guest anonymous session so browsing works without
 /// signing in, customer self-registration, login, session refresh, and logout.
 ///
-/// One endpoint deliberately bypasses the generated SDK: registration goes through
-/// POST /api/auth/local/signup/:role (Mudbase's Multi-Role feature), which the OpenAPI spec this
-/// SDK was generated from models as `MultiRoleFeatureApi.RegisterWithRoleAsync(string role,
-/// RegisterWithRoleRequest)` returning `void` with a request model of only
-/// email/password/firstName/lastName/projectId. Two real gaps against the live endpoint's actual
-/// behavior:
-///   1. The live validator requires `agreedToTerms: true` in the body or rejects the signup — the
-///      generated request model has no such property and no JsonExtensionData to smuggle one in.
-///   2. The live endpoint returns a body (message/token/refreshToken/expiresIn/user) that the
-///      spec's missing response schema left the generator no choice but to type as `void`.
-/// Rather than fabricate a nonexistent SDK method or silently drop agreedToTerms (which would make
-/// every real registration fail), this calls the endpoint directly via a plain HttpClient bound to
-/// the same Mudbase base URL, and parses the response body itself. See README "Known limitations".
+/// Every call here goes through the generated SDK. Registration used to bypass it — the SDK's
+/// `MultiRoleFeatureApi.RegisterWithRoleAsync` request model was missing `agreedToTerms` (which the
+/// live validator requires) and its response was typed `void` (the OpenAPI spec this SDK was
+/// generated from had left the response schema unspecified) — but a regenerated SDK now models
+/// both correctly (`RegisterWithRoleRequest.AgreedToTerms`, a typed `RegisterWithRole201Response`
+/// with token/refreshToken/user/role), so <see cref="RegisterCustomerAsync"/> below calls the
+/// generated method directly like everything else in this class.
 /// </summary>
 public sealed class MudbaseAuthService
 {
     private readonly IAuthenticationApi _authApi;
-    private readonly HttpClient _rawHttpClient;
+    private readonly IMultiRoleFeatureApi _multiRoleApi;
     private readonly MudbaseSessionAccessor _session;
     private readonly MudbaseOptions _options;
     private readonly ILogger<MudbaseAuthService> _logger;
 
     public MudbaseAuthService(
         IAuthenticationApi authApi,
-        IHttpClientFactory httpClientFactory,
+        IMultiRoleFeatureApi multiRoleApi,
         MudbaseSessionAccessor session,
         IOptions<MudbaseOptions> options,
         ILogger<MudbaseAuthService> logger)
     {
         _authApi = authApi;
-        _rawHttpClient = httpClientFactory.CreateClient(HttpClientNames.MudbaseRaw);
+        _multiRoleApi = multiRoleApi;
         _session = session;
         _options = options.Value;
         _logger = logger;
@@ -69,7 +62,7 @@ public sealed class MudbaseAuthService
 
             if (response.TryOk(out CreateAnonymousSession200Response? body) && body?.Token is { Length: > 0 } token)
             {
-                _session.SetToken(token);
+                _session.SetTokens(token, body.RefreshToken);
                 await RefreshSessionAsync(cancellationToken);
             }
             else
@@ -83,38 +76,30 @@ public sealed class MudbaseAuthService
         }
     }
 
+    /// <summary>
+    /// Self-signup is always the "customer" Multi-Role — see README "Provisioning" for why seller
+    /// accounts are provisioned out-of-band instead. Calls the generated SDK's
+    /// MultiRoleFeatureApi.RegisterWithRoleAsync directly (see this class's doc comment for why
+    /// that used to require a raw-HttpClient workaround and no longer does).
+    /// </summary>
     public async Task<AuthOutcome> RegisterCustomerAsync(
         string email, string password, string firstName, string lastName, bool agreedToTerms, CancellationToken cancellationToken)
     {
-        var payload = new Dictionary<string, object?>
+        RegisterWithRoleRequest request = new(email, password, firstName, lastName, _options.ProjectId, agreedToTerms);
+        IRegisterWithRoleApiResponse response = await _multiRoleApi.RegisterWithRoleAsync("customer", request, cancellationToken);
+
+        if (!response.TryCreated(out RegisterWithRole201Response? body) || body is null)
         {
-            ["email"] = email,
-            ["password"] = password,
-            ["firstName"] = firstName,
-            ["lastName"] = lastName,
-            ["projectId"] = _options.ProjectId,
-            ["agreedToTerms"] = agreedToTerms,
-        };
-
-        using HttpResponseMessage response = await _rawHttpClient.PostAsJsonAsync(
-            "/api/auth/local/signup/customer", payload, MudbaseJson.Options, cancellationToken);
-
-        string raw = await response.Content.ReadAsStringAsync(cancellationToken);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            return AuthOutcome.Failure(ExtractErrorMessage(raw) ?? $"Registration failed ({(int)response.StatusCode}).");
+            return AuthOutcome.Failure(MudbaseApiException.From(response).Message);
         }
 
-        SignupWithRoleResponsePayload? parsed = SafeDeserialize<SignupWithRoleResponsePayload>(raw);
-
-        if (parsed?.RequireVerification == true || parsed?.Token is null)
+        if (body.RequireVerification == true || body.Token is not { Length: > 0 } token)
         {
             return AuthOutcome.NeedsEmailVerification(
-                parsed?.Message ?? "Account created — check your email to verify it, then sign in.");
+                body.Message ?? "Account created — check your email to verify it, then sign in.");
         }
 
-        _session.SetToken(parsed.Token);
+        _session.SetTokens(token, body.RefreshToken);
         await RefreshSessionAsync(cancellationToken);
         return AuthOutcome.Success();
     }
@@ -129,7 +114,7 @@ public sealed class MudbaseAuthService
             return AuthOutcome.Failure(MudbaseApiException.From(response).Message);
         }
 
-        _session.SetToken(token);
+        _session.SetTokens(token, body.RefreshToken);
         await RefreshSessionAsync(cancellationToken);
         return AuthOutcome.Success();
     }
@@ -180,24 +165,5 @@ public sealed class MudbaseAuthService
         _session.ClearToken();
         _session.ClearUser();
         _session.ClearGuestCart();
-    }
-
-    private static string? ExtractErrorMessage(string raw)
-    {
-        PayLinkErrorPayload? payload = SafeDeserialize<PayLinkErrorPayload>(raw);
-        return payload?.Error;
-    }
-
-    private static T? SafeDeserialize<T>(string raw) where T : class
-    {
-        if (string.IsNullOrWhiteSpace(raw)) return null;
-        try
-        {
-            return JsonSerializer.Deserialize<T>(raw, MudbaseJson.Options);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
     }
 }

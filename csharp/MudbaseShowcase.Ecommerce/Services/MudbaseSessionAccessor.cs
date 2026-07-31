@@ -16,6 +16,7 @@ namespace MudbaseShowcase.Ecommerce.Services;
 public sealed class MudbaseSessionAccessor
 {
     private const string TokenKey = "mb_token";
+    private const string RefreshTokenKey = "mb_refresh_token";
     private const string UserKey = "mb_user";
     private const string GuestCartKey = "mb_guest_cart";
 
@@ -34,9 +35,35 @@ public sealed class MudbaseSessionAccessor
 
     public string? GetToken() => Session.GetString(TokenKey);
 
+    /// <summary>
+    /// Sets only the access token, leaving any previously stored refresh token untouched. Prefer
+    /// <see cref="SetTokens"/> after any login/register/refresh call that returns a refresh token —
+    /// this overload exists for call sites (like the anonymous session's own internal
+    /// RefreshSessionAsync re-read) that only ever have an access token in hand.
+    /// </summary>
     public void SetToken(string token) => Session.SetString(TokenKey, token);
 
-    public void ClearToken() => Session.Remove(TokenKey);
+    /// <summary>
+    /// Sets the access token and, when present, the refresh token — call this after every
+    /// login/register/anonymous-session/refresh response so <see cref="TokenRefreshHandler"/> can
+    /// transparently recover from a future 401 without the user noticing.
+    /// </summary>
+    public void SetTokens(string accessToken, string? refreshToken)
+    {
+        Session.SetString(TokenKey, accessToken);
+        if (!string.IsNullOrEmpty(refreshToken))
+        {
+            Session.SetString(RefreshTokenKey, refreshToken);
+        }
+    }
+
+    public string? GetRefreshToken() => Session.GetString(RefreshTokenKey);
+
+    public void ClearToken()
+    {
+        Session.Remove(TokenKey);
+        Session.Remove(RefreshTokenKey);
+    }
 
     public MudbaseSessionUser? CurrentUser
     {

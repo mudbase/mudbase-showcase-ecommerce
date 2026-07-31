@@ -22,7 +22,7 @@ public sealed class SessionBearerTokenProvider : TokenProvider<BearerToken>
 {
     private readonly MudbaseSessionAccessor _session;
 
-    public SessionBearerTokenProvider(MudbaseSessionAccessor session) : base(Array.Empty<BearerToken>())
+    public SessionBearerTokenProvider(MudbaseSessionAccessor session)
     {
         _session = session;
     }
