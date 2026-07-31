@@ -105,7 +105,7 @@ class _SellerProductFormScreenState
 
     final user = ref.read(authControllerProvider).valueOrNull;
     if (user == null) return;
-    final token = ref.read(authControllerProvider.notifier).requireToken();
+    final authNotifier = ref.read(authControllerProvider.notifier);
     final gallery = _galleryControllers
         .map((controller) => controller.text.trim())
         .where((url) => url.isNotEmpty)
@@ -132,12 +132,16 @@ class _SellerProductFormScreenState
     try {
       final repository = ref.read(productRepositoryProvider);
       if (widget.isEditing) {
-        await repository.update(
-            token: token, id: widget.productId!, body: body);
+        await authNotifier.callAuthorized(
+          (token) => repository.update(
+              token: token, id: widget.productId!, body: body),
+        );
       } else {
-        await repository.create(
-          token: token,
-          body: {...body, 'slug': slugify(_nameController.text.trim())},
+        await authNotifier.callAuthorized(
+          (token) => repository.create(
+            token: token,
+            body: {...body, 'slug': slugify(_nameController.text.trim())},
+          ),
         );
       }
       ref.invalidate(sellerProductsProvider);

@@ -44,29 +44,30 @@ class AuthService {
     required String lastName,
     required bool agreedToTerms,
   }) async {
+    // `RegisterWithRoleRequest.agreedToTerms` is a non-nullable builder
+    // field on the currently-vendored SDK generation - leaving it unset
+    // throws inside the builder's own `build()` (a `BuiltValueNullFieldError`)
+    // before this ever reaches the network, not a server-side rejection.
+    // Earlier SDK generations had no such field at all (the live signup
+    // validator still required `agreedToTerms` in the body regardless,
+    // confirmed by the web app's own hand-rolled client,
+    // `web/src/lib/mudbase.ts`'s `RegisterParams`), so this is set on the
+    // builder now that the generated model has caught up with the live API,
+    // rather than spliced into the serialized map by hand.
     final request = RegisterWithRoleRequest(
       (b) => b
         ..email = email
         ..password = password
         ..firstName = firstName
         ..lastName = lastName
-        ..projectId = _projectId,
+        ..projectId = _projectId
+        ..agreedToTerms = agreedToTerms,
     );
     final serialized = _sdk.serializers.serialize(
       request,
       specifiedType: const FullType(RegisterWithRoleRequest),
     );
-    // `RegisterWithRoleRequest` (the SDK's generated builder class) has no
-    // `agreedToTerms` field, but the live signup validator rejects a direct
-    // API call without one (confirmed by the web app's own hand-rolled
-    // client, `web/src/lib/mudbase.ts`'s `RegisterParams` - another case
-    // where the bundled OpenAPI spec is behind the live platform). Every
-    // field the builder *does* model is still produced through it; this is
-    // the one addition the real endpoint needs on top.
-    final body = <String, dynamic>{
-      ...serialized as Map<String, dynamic>,
-      'agreedToTerms': agreedToTerms,
-    };
+    final body = serialized as Map<String, dynamic>;
     try {
       final response = await _sdk.dio.post<dynamic>(
         '/api/auth/local/signup/${Uri.encodeComponent(role)}',
@@ -97,6 +98,26 @@ class AuthService {
       final response = await _sdk.dio.post<dynamic>(
         '/api/auth/local/login',
         data: body,
+        options: Options(contentType: 'application/json'),
+      );
+      return _asJsonMap(response);
+    } on DioException catch (error) {
+      throw MudbaseException.fromDioException(error);
+    }
+  }
+
+  /// `POST /api/auth/refresh` - exchanges a still-valid refresh token for a
+  /// new access/refresh pair. Mirrors the web app's
+  /// `MudbaseClient.refreshAccessToken` (`web/src/lib/mudbase.ts`): same
+  /// path, same `{ refreshToken }` request body, same `{ token,
+  /// refreshToken }` response shape. No generated builder class exists for
+  /// this request (the bundled OpenAPI spec has no refresh endpoint at all),
+  /// so the body is constructed by hand, same as `agreedToTerms` above.
+  Future<Map<String, dynamic>> refreshSession(String refreshToken) async {
+    try {
+      final response = await _sdk.dio.post<dynamic>(
+        '/api/auth/refresh',
+        data: {'refreshToken': refreshToken},
         options: Options(contentType: 'application/json'),
       );
       return _asJsonMap(response);

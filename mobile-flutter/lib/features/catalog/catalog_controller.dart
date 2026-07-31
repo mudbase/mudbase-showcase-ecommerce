@@ -42,9 +42,10 @@ final allActiveProductsProvider =
     FutureProvider.autoDispose<List<Product>>((ref) async {
   final user = ref.watch(authControllerProvider).valueOrNull;
   if (user == null) return const [];
-  final token = ref.read(authControllerProvider.notifier).requireToken();
+  final authNotifier = ref.read(authControllerProvider.notifier);
   final repository = ref.watch(productRepositoryProvider);
-  return repository.listActive(token: token);
+  return authNotifier
+      .callAuthorized((token) => repository.listActive(token: token));
 });
 
 final categoriesProvider = Provider.autoDispose<List<String>>((ref) {
@@ -81,7 +82,8 @@ final filteredProductsProvider =
 
 final productBySlugProvider =
     FutureProvider.autoDispose.family<Product?, String>((ref, slug) async {
-  final token = ref.read(authControllerProvider.notifier).requireToken();
+  final authNotifier = ref.read(authControllerProvider.notifier);
   final repository = ref.watch(productRepositoryProvider);
-  return repository.getBySlug(token: token, slug: slug);
+  return authNotifier
+      .callAuthorized((token) => repository.getBySlug(token: token, slug: slug));
 });

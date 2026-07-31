@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth_service.dart';
+import '../../core/mudbase_exception.dart';
 import '../../core/secure_token_storage.dart';
 import '../../core/service_providers.dart';
 import '../../models/mudbase_user.dart';
@@ -22,6 +23,15 @@ final authControllerProvider =
 /// it via [requireToken].
 class AuthController extends AsyncNotifier<MudbaseUser?> {
   String? _token;
+
+  // Refresh tokens rotate on every use (single-use, platform-enforced) - if
+  // two calls both hit a 401 at once, only the first refresh call can
+  // succeed since the second would present an already-rotated-away token.
+  // This lets concurrent callers await the same in-flight refresh instead of
+  // racing each other into failure - mirrors the web app's
+  // `MudbaseClient.refreshAccessToken`/`refreshInFlight`
+  // (`web/src/lib/mudbase.ts`).
+  Future<String?>? _refreshInFlight;
 
   AuthService get _authService => ref.read(authServiceProvider);
   SecureTokenStorage get _tokenStorage => ref.read(secureTokenStorageProvider);
@@ -55,6 +65,69 @@ class AuthController extends AsyncNotifier<MudbaseUser?> {
       throw StateError('requireToken() called with no active session.');
     }
     return token;
+  }
+
+  /// Runs [action] with the current access token and, if it fails because
+  /// the token expired or was revoked (a 401 from any Mudbase endpoint),
+  /// transparently refreshes the session via the stored refresh token and
+  /// retries [action] exactly once with the new token - instead of letting a
+  /// raw 401 surface to the screen calling this. Mirrors the web app's
+  /// `MudbaseClient.request`'s `retriedAfterRefresh` handling
+  /// (`web/src/lib/mudbase.ts`).
+  ///
+  /// If the refresh itself fails (refresh token missing, expired, or already
+  /// rotated away), the session is torn down exactly like [logout]'s local
+  /// half and the *original* 401 is rethrown, so the caller's existing error
+  /// handling (a snackbar, an inline message) still fires - the router's
+  /// `authControllerProvider` redirect then sends the user back to the login
+  /// screen on the next rebuild because `state` is now `AsyncData(null)`.
+  Future<T> callAuthorized<T>(Future<T> Function(String token) action) async {
+    final token = requireToken();
+    try {
+      return await action(token);
+    } on MudbaseException catch (error) {
+      if (error.statusCode != 401) rethrow;
+      final refreshed = await _refreshAccessToken();
+      if (refreshed == null) {
+        await _clearSessionLocally();
+        rethrow;
+      }
+      return action(refreshed);
+    }
+  }
+
+  Future<String?> _refreshAccessToken() {
+    return _refreshInFlight ??= _performRefresh().whenComplete(() {
+      _refreshInFlight = null;
+    });
+  }
+
+  Future<String?> _performRefresh() async {
+    final refreshToken = await _tokenStorage.readRefreshToken();
+    if (refreshToken == null) return null;
+    try {
+      final json = await _authService.refreshSession(refreshToken);
+      final newToken = json['token'] as String?;
+      if (newToken == null) return null;
+      final newRefreshToken = json['refreshToken'] as String?;
+      _token = newToken;
+      await _tokenStorage.saveSession(
+        token: newToken,
+        refreshToken: newRefreshToken,
+      );
+      return newToken;
+    } on Exception {
+      // Refresh token expired/revoked/already rotated away, or the server
+      // was briefly unreachable - either way there is no new token to hand
+      // back, so the caller in [callAuthorized] tears the session down.
+      return null;
+    }
+  }
+
+  Future<void> _clearSessionLocally() async {
+    _token = null;
+    await _tokenStorage.clear();
+    state = const AsyncData(null);
   }
 
   Future<void> registerCustomer({
@@ -92,9 +165,7 @@ class AuthController extends AsyncNotifier<MudbaseUser?> {
         // Ignored - see comment above.
       }
     }
-    _token = null;
-    await _tokenStorage.clear();
-    state = const AsyncData(null);
+    await _clearSessionLocally();
   }
 
   Future<void> _applySession(Map<String, dynamic> json) async {

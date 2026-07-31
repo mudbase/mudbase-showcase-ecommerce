@@ -56,32 +56,34 @@ class CheckoutController {
       return const PlaceOrderFailed('Your cart is empty.');
     }
 
-    final token = _ref.read(authControllerProvider.notifier).requireToken();
+    final authNotifier = _ref.read(authControllerProvider.notifier);
     final orderRepository = _ref.read(orderRepositoryProvider);
     final subtotalCents =
         items.fold<int>(0, (sum, item) => sum + item.lineTotalCents);
 
-    final order = await orderRepository.create(
-      token: token,
-      body: {
-        'userId': user.id,
-        'itemsJson': stringifyJsonField(
-          items
-              .map((item) => OrderLineItem(
-                    productId: item.productId,
-                    name: item.name,
-                    priceCents: item.priceCents,
-                    quantity: item.quantity,
-                  ).toJson())
-              .toList(),
-        ),
-        'subtotalCents': subtotalCents,
-        'currency': 'USD',
-        'orderStatus': OrderStatus.awaitingPayment.wireValue,
-        'shippingName': address.fullName,
-        'shippingAddressJson': stringifyJsonField(address.toJson()),
-        'paymentStatus': OrderPaymentStatus.unpaid.wireValue,
-      },
+    final order = await authNotifier.callAuthorized(
+      (token) => orderRepository.create(
+        token: token,
+        body: {
+          'userId': user.id,
+          'itemsJson': stringifyJsonField(
+            items
+                .map((item) => OrderLineItem(
+                      productId: item.productId,
+                      name: item.name,
+                      priceCents: item.priceCents,
+                      quantity: item.quantity,
+                    ).toJson())
+                .toList(),
+          ),
+          'subtotalCents': subtotalCents,
+          'currency': 'USD',
+          'orderStatus': OrderStatus.awaitingPayment.wireValue,
+          'shippingName': address.fullName,
+          'shippingAddressJson': stringifyJsonField(address.toJson()),
+          'paymentStatus': OrderPaymentStatus.unpaid.wireValue,
+        },
+      ),
     );
 
     final checkoutProxy = _ref.read(checkoutProxyServiceProvider);
@@ -102,10 +104,12 @@ class CheckoutController {
     );
 
     if (result is CheckoutPayLinkSuccess) {
-      await orderRepository.update(
-        token: token,
-        id: order.id,
-        body: {'paymentLinkToken': result.token},
+      await authNotifier.callAuthorized(
+        (token) => orderRepository.update(
+          token: token,
+          id: order.id,
+          body: {'paymentLinkToken': result.token},
+        ),
       );
       await _ref.read(cartControllerProvider.notifier).clear();
       return PlaceOrderSuccess(result.token);
@@ -113,10 +117,12 @@ class CheckoutController {
 
     final failure = result as CheckoutPayLinkFailure;
     if (failure.isKycRequired) {
-      await orderRepository.update(
-        token: token,
-        id: order.id,
-        body: {'orderStatus': OrderStatus.pending.wireValue},
+      await authNotifier.callAuthorized(
+        (token) => orderRepository.update(
+          token: token,
+          id: order.id,
+          body: {'orderStatus': OrderStatus.pending.wireValue},
+        ),
       );
       return PlaceOrderNeedsVerification(failure.message);
     }

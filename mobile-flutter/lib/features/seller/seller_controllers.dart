@@ -12,9 +12,10 @@ import '../auth/auth_controller.dart';
 /// limitations" for why.
 final sellerOrdersProvider =
     FutureProvider.autoDispose<List<Order>>((ref) async {
-  final token = ref.read(authControllerProvider.notifier).requireToken();
+  final authNotifier = ref.read(authControllerProvider.notifier);
   final repository = ref.watch(orderRepositoryProvider);
-  final orders = await repository.listAll(token: token);
+  final orders = await authNotifier
+      .callAuthorized((token) => repository.listAll(token: token));
   return orders..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 });
 
@@ -22,16 +23,19 @@ final sellerProductsProvider =
     FutureProvider.autoDispose<List<Product>>((ref) async {
   final user = ref.watch(authControllerProvider).valueOrNull;
   if (user == null) return const [];
-  final token = ref.read(authControllerProvider.notifier).requireToken();
+  final authNotifier = ref.read(authControllerProvider.notifier);
   final repository = ref.watch(productRepositoryProvider);
-  return repository.listForSeller(token: token, sellerId: user.id);
+  return authNotifier.callAuthorized(
+    (token) => repository.listForSeller(token: token, sellerId: user.id),
+  );
 });
 
 final sellerProductByIdProvider =
     FutureProvider.autoDispose.family<Product?, String>((ref, id) async {
-  final token = ref.read(authControllerProvider.notifier).requireToken();
+  final authNotifier = ref.read(authControllerProvider.notifier);
   final repository = ref.watch(productRepositoryProvider);
-  return repository.getById(token: token, id: id);
+  return authNotifier
+      .callAuthorized((token) => repository.getById(token: token, id: id));
 });
 
 final sellerOrderActionsProvider = Provider<SellerOrderActions>((ref) {
@@ -49,9 +53,12 @@ class SellerOrderActions {
   Future<void> advance(Order order) async {
     final next = order.orderStatus.nextFulfillmentStatus;
     if (next == null) return;
-    final token = _ref.read(authControllerProvider.notifier).requireToken();
+    final authNotifier = _ref.read(authControllerProvider.notifier);
     final repository = _ref.read(orderRepositoryProvider);
-    await repository.updateStatus(token: token, id: order.id, status: next);
+    await authNotifier.callAuthorized(
+      (token) =>
+          repository.updateStatus(token: token, id: order.id, status: next),
+    );
     _ref.invalidate(sellerOrdersProvider);
   }
 }

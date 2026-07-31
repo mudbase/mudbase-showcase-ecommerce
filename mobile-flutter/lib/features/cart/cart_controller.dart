@@ -16,9 +16,11 @@ class CartController extends AsyncNotifier<List<CartItem>> {
   Future<List<CartItem>> build() async {
     final user = ref.watch(authControllerProvider).valueOrNull;
     if (user == null) return const [];
-    final token = ref.read(authControllerProvider.notifier).requireToken();
+    final authNotifier = ref.read(authControllerProvider.notifier);
     final repository = ref.read(cartRepositoryProvider);
-    final cart = await repository.getForUser(token: token, userId: user.id);
+    final cart = await authNotifier.callAuthorized(
+      (token) => repository.getForUser(token: token, userId: user.id),
+    );
     return cart?.items ?? const [];
   }
 
@@ -64,11 +66,13 @@ class CartController extends AsyncNotifier<List<CartItem>> {
     final optimistic = transform(previous);
     state = AsyncData(optimistic);
 
-    final token = ref.read(authControllerProvider.notifier).requireToken();
+    final authNotifier = ref.read(authControllerProvider.notifier);
     final repository = ref.read(cartRepositoryProvider);
     try {
-      final cart = await repository.save(
-          token: token, userId: user.id, items: optimistic);
+      final cart = await authNotifier.callAuthorized(
+        (token) =>
+            repository.save(token: token, userId: user.id, items: optimistic),
+      );
       state = AsyncData(cart.items);
     } on Exception {
       state = AsyncData(previous);

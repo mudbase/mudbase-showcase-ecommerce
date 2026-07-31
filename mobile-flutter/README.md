@@ -163,14 +163,18 @@ source in `mudbase-sdk/dart/lib/src/`, not guessed:
   routed into an `unhandled` list and discarded). Every product/order/cart field this app actually
   renders would be silently dropped from a list read.
 - The Multi-Role signup endpoint's real-world validator additionally requires `agreedToTerms` in the
-  request body (confirmed by the web app's own hand-rolled client, `web/src/lib/mudbase.ts`), a
-  field the generated `RegisterWithRoleRequest` builder class has no slot for.
+  request body (confirmed by the web app's own hand-rolled client, `web/src/lib/mudbase.ts`). Earlier
+  vendored generations of the SDK had no slot for it on `RegisterWithRoleRequest` at all, which is why
+  `AuthService.registerWithRole` used to splice it into the already-serialized map by hand; the
+  currently-vendored generation has since caught up and models `agreedToTerms` as a required builder
+  field, so it's now set directly on the builder like every other field (an unset non-nullable builder
+  field throws inside `build()` before the request ever reaches the network, not a server-side
+  rejection - a real regression this app hit and fixed, see `lib/core/auth_service.dart`).
 
 Request bodies still go through the SDK's real generated builder classes
 (`RegisterWithRoleRequest`, `LoginLocalUserRequest`) and its own `Serializers` to produce the wire
-payload wherever a builder exists for that request - only the response side (and the one
-`agreedToTerms` field) is handled by hand. See `lib/core/auth_service.dart` and
-`lib/core/mudbase_data_service.dart` for the exact reasoning inline.
+payload wherever a builder exists for that request - only the response side is handled by hand. See
+`lib/core/auth_service.dart` and `lib/core/mudbase_data_service.dart` for the exact reasoning inline.
 
 **`galleryJson`/`itemsJson`/`shippingAddressJson` are JSON-encoded strings, not native arrays.**
 Mudbase Collections have no native array/object field type - a real, documented platform
