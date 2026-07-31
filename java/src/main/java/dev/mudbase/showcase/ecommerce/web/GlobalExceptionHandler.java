@@ -12,9 +12,12 @@ import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 /**
- * Every unhandled Mudbase call failure lands here instead of a raw stack trace. A 401 (stale or
- * expired session JWT - this app does not implement refresh-token rotation, matching the
- * reference web app's own scope) clears the session and bounces to /login; everything else
+ * Every unhandled Mudbase call failure lands here instead of a raw stack trace. {@link
+ * dev.mudbase.showcase.ecommerce.mudbase.MudbaseDataClient} already retries a 401 once via a
+ * silent refresh-token exchange (see {@link SessionAuthService#recoverFromUnauthorized}), so by
+ * the time a 401 reaches this handler the refresh path has already been tried and failed (no
+ * session, no refresh token on file, or the refresh token itself was rejected) - this clears the
+ * session and bounces to /login as the terminal "session expired" behavior; everything else
  * renders a plain error page with the real Mudbase-provided message.
  */
 @ControllerAdvice

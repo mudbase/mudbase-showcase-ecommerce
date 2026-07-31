@@ -7,8 +7,8 @@ import dev.mudbase.sdk.ApiException;
 import dev.mudbase.sdk.api.AuthenticationApi;
 import dev.mudbase.sdk.model.CreateAnonymousSession200Response;
 import dev.mudbase.sdk.model.CreateAnonymousSessionRequest;
-import dev.mudbase.sdk.model.LoginLocalUser200Response;
-import dev.mudbase.sdk.model.LoginLocalUserRequest;
+import dev.mudbase.sdk.model.RefreshToken200Response;
+import dev.mudbase.sdk.model.RefreshTokenRequest;
 import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -34,7 +34,22 @@ import org.springframework.stereotype.Component;
  * OkHttp client and base path, with a hand-written response shape mirroring the sibling {@code
  * RegisterLocalUser201Response}/{@code RegisterLocalUser201ResponseUser} models (the same
  * underlying local-auth registration handler, just role-scoped) - see README "Known limitations".
- * Every other auth call below uses the real generated {@link AuthenticationApi}.
+ *
+ * <p><b>Why login also bypasses the generated SDK method.</b> {@code
+ * AuthenticationApi.loginLocalUser} deserializes its response with the generated {@code
+ * LoginLocalUser200ResponseUser} model via Gson, which - unlike the SDK's Jackson-based raw-call
+ * path used elsewhere in this app - hard-fails with an {@code IllegalArgumentException} the
+ * instant the response JSON contains any property the model doesn't declare. Every account
+ * created through this project's Multi-Role feature (i.e. every seller/customer this app ever
+ * creates or signs in) gets a login response whose {@code user} object carries both {@code role}
+ * and {@code customRole} - the generated model only declares {@code role} - so this call fails
+ * with a 500 for every real signed-up user, every time, confirmed against the live API during
+ * this app's own end-to-end testing. Same "raw call over the SDK's own shared OkHttpClient, same base
+ * path and bearer header, parsed leniently with Jackson's {@code ignoreUnknown}" fix already
+ * applied to registration and to {@link MudbaseDataClient#listRaw} for their own generated-model
+ * mismatches - see those for the established pattern. Worth flagging back to Mudbase alongside
+ * the other two: the login endpoint's OpenAPI spec is missing a field its own live handler
+ * always returns for Multi-Role accounts.
  */
 @Component
 public class MudbaseAuthClient {
@@ -85,33 +100,55 @@ public class MudbaseAuthClient {
           user != null ? user.firstName : firstName,
           user != null ? user.lastName : lastName,
           user != null ? user.customRole : role,
-          Boolean.TRUE.equals(payload.requireVerification));
+          Boolean.TRUE.equals(payload.requireVerification),
+          payload.refreshToken);
     } catch (IOException e) {
       throw new MudbaseApiException("Could not reach Mudbase to register", 502, null, e);
     }
   }
 
   public AuthResult login(String email, String password) {
-    AuthenticationApi authApi = clientFactory.authApi(null);
-    LoginLocalUserRequest request =
-        new LoginLocalUserRequest().email(email).password(password).projectId(clientFactory.projectId());
+    Map<String, Object> body = new LinkedHashMap<>();
+    body.put("email", email);
+    body.put("password", password);
+    body.put("projectId", clientFactory.projectId());
+
+    String requestJson;
     try {
-      LoginLocalUser200Response response = authApi.loginLocalUser(request);
-      var user = response.getUser();
+      requestJson = MAPPER.writeValueAsString(body);
+    } catch (Exception e) {
+      throw new IllegalStateException("Could not serialize login request", e);
+    }
+
+    OkHttpClient httpClient = clientFactory.rawHttpClient();
+    Request request =
+        new Request.Builder()
+            .url(clientFactory.baseUrl() + "/api/auth/local/login")
+            .post(RequestBody.create(requestJson, MediaType.parse("application/json")))
+            .build();
+
+    try (Response response = httpClient.newCall(request).execute()) {
+      String responseBody = response.body() != null ? response.body().string() : "";
+      if (!response.isSuccessful()) {
+        throw MudbaseApiException.fromRawBody(response.code(), responseBody);
+      }
+      LoginPayload payload = MAPPER.readValue(responseBody, LoginPayload.class);
+      LoginPayload.User user = payload.user;
       return new AuthResult(
-          response.getToken(),
-          user != null ? user.getId() : null,
-          user != null ? user.getEmail() : email,
-          user != null ? user.getFirstName() : null,
-          user != null ? user.getLastName() : null,
-          // This endpoint's generated response types the field "role" (see
-          // LoginLocalUser200ResponseUser) where every other user shape in this SDK calls the
-          // same concept "customRole" - same semantics (the project app-role, e.g. "customer" or
-          // "seller"), different generated field name for this one endpoint.
-          user != null ? user.getRole() : null,
-          false);
-    } catch (ApiException e) {
-      throw MudbaseApiException.from(e);
+          payload.token,
+          user != null ? user.id : null,
+          user != null ? user.email : email,
+          user != null ? user.firstName : null,
+          user != null ? user.lastName : null,
+          // Real Multi-Role accounts carry both "role" and "customRole" on this response - see
+          // class javadoc "Why login also bypasses the generated SDK method". customRole is the
+          // project app-role this app actually cares about; fall back to role only for the rare
+          // account shape that predates the Multi-Role feature and never got a customRole set.
+          user != null && user.customRole != null ? user.customRole : (user != null ? user.role : null),
+          false,
+          payload.refreshToken);
+    } catch (IOException e) {
+      throw new MudbaseApiException("Could not reach Mudbase to log in", 502, null, e);
     }
   }
 
@@ -132,7 +169,41 @@ public class MudbaseAuthClient {
       CreateAnonymousSession200Response response = authApi.createAnonymousSession(request);
       var user = response.getUser();
       return new AuthResult(
-          response.getToken(), user != null ? user.getId() : null, null, null, null, null, false);
+          response.getToken(),
+          user != null ? user.getId() : null,
+          null,
+          null,
+          null,
+          null,
+          false,
+          response.getRefreshToken());
+    } catch (ApiException e) {
+      throw MudbaseApiException.from(e);
+    }
+  }
+
+  /**
+   * Exchanges a stored refresh token for a new access/refresh token pair. Used by {@link
+   * dev.mudbase.showcase.ecommerce.auth.SessionAuthService#recoverFromUnauthorized} to
+   * transparently recover from a 401 caused by an expired access token - see that method for the
+   * retry-once policy. Mudbase rotates the refresh token on every use (the previous one is
+   * invalidated - reuse is treated as a stolen-token signal), so the caller must persist the
+   * {@code refreshToken} on this result, not just the {@code token}.
+   */
+  public AuthResult refresh(String refreshToken) {
+    AuthenticationApi authApi = clientFactory.authApi(null);
+    RefreshTokenRequest request = new RefreshTokenRequest().refreshToken(refreshToken);
+    try {
+      RefreshToken200Response response = authApi.refreshToken(request);
+      return new AuthResult(
+          response.getToken(),
+          null,
+          null,
+          null,
+          null,
+          null,
+          false,
+          response.getRefreshToken() != null ? response.getRefreshToken() : refreshToken);
     } catch (ApiException e) {
       throw MudbaseApiException.from(e);
     }
@@ -156,6 +227,33 @@ public class MudbaseAuthClient {
       public String lastName;
       public Boolean emailVerified;
       public String customRole;
+    }
+  }
+
+  /**
+   * Hand-written mirror of LoginLocalUser200Response, deliberately Jackson-lenient ({@code
+   * ignoreUnknown}) rather than the generated Gson model's strict field validation - see class
+   * javadoc "Why login also bypasses the generated SDK method". Declares both {@code role} and
+   * {@code customRole} since real Multi-Role accounts' login responses carry both.
+   */
+  @JsonIgnoreProperties(ignoreUnknown = true)
+  private static class LoginPayload {
+    public String message;
+    public String token;
+    public String refreshToken;
+    public Integer expiresIn;
+    public User user;
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    static class User {
+      public String id;
+      public String email;
+      public String firstName;
+      public String lastName;
+      public String role;
+      public String customRole;
+      public Boolean emailVerified;
+      public Boolean twoFactorEnabled;
     }
   }
 }

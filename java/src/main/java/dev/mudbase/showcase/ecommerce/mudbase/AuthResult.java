@@ -10,6 +10,7 @@ public class AuthResult {
   private final String lastName;
   private final String customRole;
   private final boolean requireVerification;
+  private final String refreshToken;
 
   public AuthResult(
       String token,
@@ -19,6 +20,18 @@ public class AuthResult {
       String lastName,
       String customRole,
       boolean requireVerification) {
+    this(token, userId, email, firstName, lastName, customRole, requireVerification, null);
+  }
+
+  public AuthResult(
+      String token,
+      String userId,
+      String email,
+      String firstName,
+      String lastName,
+      String customRole,
+      boolean requireVerification,
+      String refreshToken) {
     this.token = token;
     this.userId = userId;
     this.email = email;
@@ -26,6 +39,7 @@ public class AuthResult {
     this.lastName = lastName;
     this.customRole = customRole;
     this.requireVerification = requireVerification;
+    this.refreshToken = refreshToken;
   }
 
   public String getToken() {
@@ -54,5 +68,9 @@ public class AuthResult {
 
   public boolean isRequireVerification() {
     return requireVerification;
+  }
+
+  public String getRefreshToken() {
+    return refreshToken;
   }
 }

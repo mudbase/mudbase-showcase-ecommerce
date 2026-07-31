@@ -1,7 +1,5 @@
 package dev.mudbase.showcase.ecommerce.mudbase;
 
-import dev.mudbase.sdk.model.DataListResponseDataInner;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -9,34 +7,21 @@ import java.util.Map;
  * as the raw Mudbase JSON ({@code _id}, {@code createdAt}, {@code updatedAt}, plus every
  * collection-defined field), and provides defensive readers for pulling typed values back out.
  *
- * <p>Two document shapes come out of the generated SDK and need reconciling: {@link
- * DataListResponseDataInner} (used by {@code listData}) types {@code _id}/{@code createdAt}/
- * {@code updatedAt} explicitly and puts every other collection field in an {@code
- * additionalProperties} map, while {@code DataResponse.getData()} (used by {@code
- * getData}/{@code createData}/{@code updateData}) is declared as a raw {@code Object} that Gson
- * deserializes into a {@code LinkedTreeMap<String,Object>} with every field - including {@code
- * _id} - flattened together already. Both are normalized here into the same {@code Map} shape so
- * the domain mappers (Product/Order/Cart) never need to care which SDK call produced the data.
+ * <p>{@code DataResponse.getData()} (used by {@code getData}/{@code createData}/{@code
+ * updateData}) is declared as a raw {@code Object} that Gson deserializes into a {@code
+ * LinkedTreeMap<String,Object>} with every field - including {@code _id} - already flattened
+ * together; {@code asMap} below just narrows that to a plain {@code Map}. {@code listData}'s own
+ * document shape never reaches here - see {@link MudbaseDataClient#listRaw} for why that call is
+ * parsed independently with Jackson instead of the generated SDK model.
  */
 public final class DocumentMapper {
 
   private DocumentMapper() {}
 
-  public static Map<String, Object> fromListItem(DataListResponseDataInner item) {
-    Map<String, Object> map = new LinkedHashMap<>();
-    map.put("_id", item.getId());
-    map.put("createdAt", item.getCreatedAt() != null ? item.getCreatedAt().toString() : null);
-    map.put("updatedAt", item.getUpdatedAt() != null ? item.getUpdatedAt().toString() : null);
-    if (item.getAdditionalProperties() != null) {
-      map.putAll(item.getAdditionalProperties());
-    }
-    return map;
-  }
-
   /**
-   * {@code DataResponse.getData()} / {@code DataListResponse}'s raw entries deserialize (via
-   * Gson, since the declared type is {@code Object}) into a {@code LinkedTreeMap<String,Object>}
-   * for any JSON object - safe to treat as a plain {@code Map} here.
+   * {@code DataResponse.getData()}'s raw entries deserialize (via Gson, since the declared type
+   * is {@code Object}) into a {@code LinkedTreeMap<String,Object>} for any JSON object - safe to
+   * treat as a plain {@code Map} here.
    */
   @SuppressWarnings("unchecked")
   public static Map<String, Object> asMap(Object data) {

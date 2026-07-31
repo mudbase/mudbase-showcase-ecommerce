@@ -136,6 +136,44 @@ field as a raw untyped `Object`. This app treats all three as the same semantic 
 project's app-role, e.g. `"customer"` or `"seller"`) — see the comment in
 `mudbase/MudbaseAuthClient.java#login`.
 
+**`AuthenticationApi.loginLocalUser` fails with a 500 for every real Multi-Role account.** This
+is more than the naming inconsistency above — it's a live crash, found and fixed during this app's
+own end-to-end testing. The generated `LoginLocalUser200ResponseUser` model is deserialized with
+Gson, which hard-fails (`IllegalArgumentException`, same failure class as the `listData`/`Pagination`
+mismatch below) the instant the response JSON has a property the model doesn't declare. Every
+account created via this project's Multi-Role feature — i.e. every seller/customer this app ever
+creates — gets a login response whose `user` object carries **both** `role` and `customRole`; the
+generated model only declares `role`. `MudbaseAuthClient#login` now bypasses the generated method
+the same way registration does: a raw call over the SDK's shared `OkHttpClient`, parsed leniently
+with a Jackson `@JsonIgnoreProperties(ignoreUnknown = true)` DTO instead of the strict generated
+Gson model. Worth flagging back to Mudbase alongside the registration and listData mismatches:
+the login endpoint's OpenAPI spec is missing a field its own live handler always returns.
+
+**`DataApi.listData` also fails against the live API — every list call in this app bypasses it.**
+Its generated `Pagination` model hard-fails (`IllegalArgumentException`, not even the SDK's own
+checked `ApiException`) the instant a response includes a `hasMore` field the model never declared
+— confirmed against every single `listData` call this app makes (catalog, seller product/order
+queues, cart, order history). `MudbaseDataClient#listRaw` bypasses `DataApi.listData` entirely with
+the same raw-call-plus-lenient-Jackson-parsing pattern as the two auth mismatches above — see that
+method's javadoc.
+
+**A single page render that needs more than one Mudbase call can spuriously "expire" a session
+that was just successfully refreshed.** Found and fixed during this app's own end-to-end testing,
+the same underlying bug class every other per-language reimplementation of this storefront (Go,
+Python, Ruby, C#, PHP, Swift, Flutter) also hit: several controllers (e.g. `SellerController#dashboard`,
+which lists both orders and products for the seller) read the signed-in `AuthSession` once and pass
+that same snapshot's access token into two or more sequential `MudbaseDataClient` calls. If the
+token had expired, the *first* call would 401, silently refresh via the stored refresh token, and
+retry successfully — but the *second* call still carried the pre-refresh token, so it 401'd too,
+and `SessionAuthService#recoverFromUnauthorized` treated a token mismatch as "a different request
+already refreshed this session, nothing to do," discarding the perfectly valid session it had just
+created and forcing a spurious "session expired, please sign in again" logout. The fix: a token
+mismatch now means "the session already holds something newer than what just failed," so the
+current session token is handed back for an immediate retry instead of being treated as a lost
+cause — verified end-to-end against the live API by deliberately corrupting a session's access
+token while keeping its real refresh token and confirming `/seller` (which makes exactly this kind
+of multi-call request) now renders successfully instead of logging the seller out.
+
 **Guest cart lives in the servlet `HttpSession`, not `localStorage`.** The reference Next.js app
 keeps a pre-login cart in the browser's `localStorage` because it's a client-rendered SPA; this
 server-rendered app has no client-side storage layer to reuse, so the equivalent guest cart lives
@@ -149,11 +187,16 @@ server-rendered form with no client JS field-array wiring uses a plain multi-lin
 split on newlines into the same `galleryJson` string field. Functionally equivalent, less polished
 UI.
 
-**No refresh-token rotation.** Like the reference web app (which never calls `POST /api/auth/refresh`
-either), this app uses the JWT issued at login/register for the life of the session and does not
-implement Mudbase's refresh-token rotation. A session that outlives its JWT's expiry gets a 401 from
-Mudbase, which this app treats as "session expired" and redirects to `/login` — there is no
-automatic silent refresh.
+**Transparent refresh-token rotation.** Unlike the reference web app (which never calls `POST
+/api/auth/refresh`), this app stores the refresh token issued alongside every login, register, and
+anonymous-session call in the `HttpSession` (`AuthSession.refreshToken`). `MudbaseDataClient#execute`
+retries every collection call exactly once on a 401: it hands the failed token to
+`SessionAuthService#recoverFromUnauthorized`, which exchanges the stored refresh token for a new
+access/refresh pair via `POST /api/auth/refresh` (not under the login/register rate limit) and
+persists the rotated pair back into the session before the original call is silently re-issued with
+the new token. Only when there is no session, no refresh token on file, or the refresh call itself
+fails does the original 401 propagate to `GlobalExceptionHandler`, which then clears the session and
+redirects to `/login` as the terminal "session expired" behavior.
 
 **No Spring Security / CSRF tokens.** Every state-changing endpoint is a plain `POST` handled by a
 `@Controller` method with Bean Validation; there is no CSRF token, session-fixation protection, or
@@ -187,10 +230,32 @@ on refresh without a restart.
 
 ## Verification performed
 
-`mvn compile` builds clean. The full request pipeline (real SDK calls to `cloud.mudbase.dev`,
-error handling, session/cart state, Thymeleaf rendering) was smoke-tested end-to-end against the
-**real** Mudbase API using a placeholder project ID — every call correctly reaches
-`cloud.mudbase.dev` and real API responses (429 rate limits, 404s, validation errors) are parsed
-and rendered rather than crashing. Full business-flow testing (a real catalog, a real checkout,
-a real payment) requires a live provisioned project and was out of scope per this task's own
-instructions.
+`mvn clean install` builds clean. The full business flow was run end-to-end against the **real**,
+live, provisioned Mudbase project (`cloud.mudbase.dev`), not a placeholder: seller sign-in, seller
+product creation, public catalog browsing, customer sign-in, add-to-cart, checkout (shipping form
+→ order creation → payment-link request), order history, and back to the seller fulfillment queue
+to advance an order's status. Every one of those calls hit the real API - no mocks, no stubs.
+
+That pass surfaced and fixed three real, previously-undiscovered bugs (see "Known limitations"
+above for full detail on each):
+
+1. **`SessionAuthService#recoverFromUnauthorized` discarded a just-refreshed valid session** when
+   a single page made more than one Mudbase call from the same pre-refresh token snapshot (e.g.
+   the seller dashboard listing both orders and products) - fixed by treating a token mismatch as
+   "retry with what's already there" instead of "give up."
+2. **`AuthenticationApi.loginLocalUser` crashed with a 500 for every real Multi-Role account**
+   because the generated response model doesn't declare the `customRole` field every such
+   account's login response actually carries - fixed the same way registration's own generated-model
+   mismatch was already fixed: a raw call parsed leniently with Jackson instead of the strict
+   generated Gson model.
+3. **Carts and orders always rendered empty**, despite persisting correctly to Mudbase, because
+   `JsonFields`'s round trip serialized `CartItem`/`OrderLineItem`'s derived getters
+   (`getLineTotalCents()` and friends) into the stored JSON, then failed to read that same JSON
+   back under Jackson's default strict unknown-property handling - fixed by disabling
+   `FAIL_ON_UNKNOWN_PROPERTIES` on the shared mapper.
+
+The one call this app does not fully control - creating a Payment Link via the deployed reference
+app's proxy - failed during this test run (the demo org has no approved payment merchant / the
+proxy's own merchant refresh token was invalid), exactly the documented, out-of-scope platform
+limitation described above. The app surfaced that honestly on the order detail page rather than
+faking a successful charge or crashing - confirmed working as designed, not a bug.

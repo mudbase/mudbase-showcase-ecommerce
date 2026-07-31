@@ -19,6 +19,7 @@ public class AuthSession implements Serializable {
   private final String lastName;
   private final String customRole;
   private final boolean anonymous;
+  private final String refreshToken;
 
   public AuthSession(
       String token,
@@ -28,6 +29,18 @@ public class AuthSession implements Serializable {
       String lastName,
       String customRole,
       boolean anonymous) {
+    this(token, userId, email, firstName, lastName, customRole, anonymous, null);
+  }
+
+  public AuthSession(
+      String token,
+      String userId,
+      String email,
+      String firstName,
+      String lastName,
+      String customRole,
+      boolean anonymous,
+      String refreshToken) {
     this.token = token;
     this.userId = userId;
     this.email = email;
@@ -35,10 +48,21 @@ public class AuthSession implements Serializable {
     this.lastName = lastName;
     this.customRole = customRole;
     this.anonymous = anonymous;
+    this.refreshToken = refreshToken;
   }
 
-  public static AuthSession anonymous(String token, String userId) {
-    return new AuthSession(token, userId, null, null, null, null, true);
+  public static AuthSession anonymous(String token, String userId, String refreshToken) {
+    return new AuthSession(token, userId, null, null, null, null, true, refreshToken);
+  }
+
+  /**
+   * Immutable copy carrying a rotated access/refresh token pair after a successful {@code
+   * POST /api/auth/refresh} - every other field (identity, role, anonymous flag) is preserved
+   * since a token refresh never changes who the caller is.
+   */
+  public AuthSession withRefreshedToken(String newToken, String newRefreshToken) {
+    return new AuthSession(
+        newToken, userId, email, firstName, lastName, customRole, anonymous, newRefreshToken);
   }
 
   public String getToken() {
@@ -74,6 +98,10 @@ public class AuthSession implements Serializable {
 
   public boolean isAnonymous() {
     return anonymous;
+  }
+
+  public String getRefreshToken() {
+    return refreshToken;
   }
 
   public boolean isSignedIn() {
