@@ -5,13 +5,13 @@ import { z } from "zod";
  *
  * Several of the generated `mudbase-sdk` response models under-describe the
  * real JSON the platform returns (see client.ts's top-of-file comment for the
- * specific, documented gaps — e.g. `registerWithRole` is typed `void`, and the
+ * specific, documented gaps - e.g. `registerWithRole` is typed `void`, and the
  * project-scoped user objects the SDK types omit `customRole`/`isAnonymous`
  * even though the live API includes them, mirroring what web/src/lib/mudbase.ts's
  * hand-written `UserObject` interface already relies on in production). Rather
  * than casting past the generated types with `as`, every SDK response is
  * widened to `unknown` (always assignable, no cast needed) and parsed through
- * one of these schemas — the project's own "no `any`, narrow `unknown` with
+ * one of these schemas - the project's own "no `any`, narrow `unknown` with
  * zod at boundaries" rule applied to a real third-party SDK, not just our own
  * API layer.
  */
@@ -23,7 +23,7 @@ export const mudbaseUserSchema = z.object({
   email: z.string(),
   firstName: z.string(),
   lastName: z.string(),
-  // Multi-Role's app-level role ("customer" | "seller" | any future role) —
+  // Multi-Role's app-level role ("customer" | "seller" | any future role) -
   // present on every project-based session response in production, even
   // though the generated LoginLocalUser200ResponseUser model omits it.
   customRole: z.string().nullable().optional(),
@@ -58,7 +58,7 @@ export const productSchema = documentBaseSchema.extend({
   compareAtPriceCents: z.number().optional(),
   currency: z.string(),
   imageUrl: z.string().optional(),
-  // JSON-array-as-string — Mudbase collection fields have no native array
+  // JSON-array-as-string - Mudbase collection fields have no native array
   // type, so multi-image galleries are JSON-encoded and parsed at the edges
   // via lib/jsonField.ts (same platform constraint documented in web/README.md).
   galleryJson: z.string().optional(),

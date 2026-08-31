@@ -57,7 +57,29 @@ if (!isset($_SESSION['mudbase_token'])) {
 }
 
 $token = $_SESSION['mudbase_token'] ?? null;
-$mudbase = new MudbaseClient($mudbaseUrl, $projectId, is_string($token) ? $token : null);
+$refreshToken = $_SESSION['mudbase_refresh_token'] ?? null;
+
+/**
+ * Wired into MudbaseClient so a mid-request 401 (access token expired) can be recovered from
+ * silently: MudbaseClient::callApi()/listDocuments() exchange the refresh token for a new pair
+ * via POST /api/auth/refresh and retry the failing call once before giving up. This callback is
+ * the only thing that persists the refreshed pair back into $_SESSION — MudbaseClient itself has
+ * no session dependency, so it stays usable from a CLI script. Only a refresh-token failure
+ * (itself expired/revoked) still reaches the front controller's catch(MudbaseApiError) in
+ * public/index.php, which clears the session and re-bootstraps as a fresh guest — see that file.
+ */
+$onTokenRefreshed = static function (string $newToken, ?string $newRefreshToken): void {
+    $_SESSION['mudbase_token'] = $newToken;
+    $_SESSION['mudbase_refresh_token'] = $newRefreshToken;
+};
+
+$mudbase = new MudbaseClient(
+    $mudbaseUrl,
+    $projectId,
+    is_string($token) ? $token : null,
+    is_string($refreshToken) ? $refreshToken : null,
+    $onTokenRefreshed,
+);
 $user = is_array($_SESSION['mudbase_user'] ?? null) ? $_SESSION['mudbase_user'] : null;
 $cart = new Cart($mudbase, $cartsCollectionId);
 $paymentLinkProxy = new PaymentLinkProxy($payLinkProxyUrl, $mudbaseUrl);

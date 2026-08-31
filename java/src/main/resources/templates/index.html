@@ -9,7 +9,7 @@
 
 <main class="container">
   <h1 class="page-title">Commonwealth Goods</h1>
-  <p class="lede">Every product, order, cart, and payment on this page is served by a real Mudbase project — no custom backend beyond the payment-link proxy. Browse freely; your cart follows you the moment you sign in.</p>
+  <p class="lede">Every product, order, cart, and payment on this page is served by a real Mudbase project - no custom backend beyond the payment-link proxy. Browse freely; your cart follows you the moment you sign in.</p>
 
   <div th:if="${categories != null and !categories.isEmpty()}" class="category-filter" role="group" aria-label="Filter by category">
     <a th:href="@{/}" class="category-pill" th:classappend="${selectedCategory == null} ? 'active' : ''">All</a>
@@ -22,7 +22,7 @@
 
   <div th:if="${products.isEmpty()}" class="empty-state">
     <p th:if="${selectedCategory != null}" th:text="'No products in &quot;' + ${selectedCategory} + '&quot; yet.'">No products.</p>
-    <p th:unless="${selectedCategory != null}">No products listed yet — check back soon.</p>
+    <p th:unless="${selectedCategory != null}">No products listed yet - check back soon.</p>
   </div>
 
   <div th:unless="${products.isEmpty()}" class="grid-products">

@@ -60,7 +60,7 @@ export function AddToCartForm({ product }: { product: Product }): React.JSX.Elem
         </div>
         <Button onClick={() => void handleAdd()} disabled={outOfStock || status === "adding"} className="flex-1">
           <ShoppingBag className="mr-2 h-4 w-4" />
-          {outOfStock ? "Out of stock" : status === "added" ? "Added to cart" : status === "error" ? "Couldn't add — try again" : "Add to cart"}
+          {outOfStock ? "Out of stock" : status === "added" ? "Added to cart" : status === "error" ? "Couldn't add - try again" : "Add to cart"}
         </Button>
       </div>
       {status === "error" && (

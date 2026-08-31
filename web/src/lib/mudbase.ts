@@ -11,7 +11,7 @@ export interface RegisterParams {
   firstName: string
   lastName: string
   role: "customer" | "seller"
-  /** Required by Mudbase's registration validator — a direct API call without it is rejected. */
+  /** Required by Mudbase's registration validator - a direct API call without it is rejected. */
   agreedToTerms: boolean
 }
 

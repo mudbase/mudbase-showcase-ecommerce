@@ -10,7 +10,7 @@
         {% if images %}
           <div class="carousel" data-carousel>
             {% for src in images %}
-              <img src="{{ src }}" alt="{{ product.name }}{{ '' if loop.first else ' — photo ' ~ loop.index }}" class="{{ 'active' if loop.first else '' }}" />
+              <img src="{{ src }}" alt="{{ product.name }}{{ '' if loop.first else ' - photo ' ~ loop.index }}" class="{{ 'active' if loop.first else '' }}" />
             {% endfor %}
             {% if images | length > 1 %}
               <button type="button" class="carousel-nav carousel-prev" data-carousel-prev aria-label="Previous photo">&#8592;</button>

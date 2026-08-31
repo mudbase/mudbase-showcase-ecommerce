@@ -27,7 +27,7 @@ export function SellerOrderQueue(): React.JSX.Element {
   if (orders.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border py-16 text-center">
-        <p className="text-muted-foreground">No orders yet — they&apos;ll appear here the instant one comes in.</p>
+        <p className="text-muted-foreground">No orders yet - they&apos;ll appear here the instant one comes in.</p>
       </div>
     )
   }

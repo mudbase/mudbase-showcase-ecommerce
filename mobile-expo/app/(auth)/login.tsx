@@ -11,7 +11,7 @@ export default function LoginScreen(): React.JSX.Element {
           <Text className="font-semibold text-3xl text-foreground">Commonwealth Goods</Text>
           <Text className="text-muted-foreground">Sign in to browse the catalog and manage your orders.</Text>
         </View>
-        {/* No manual navigation needed on success — the root layout's AuthGuard
+        {/* No manual navigation needed on success - the root layout's AuthGuard
             redirects away from (auth) the instant `user` becomes non-null. */}
         <LoginForm onSuccess={() => undefined} />
         <View className="mt-6 flex-row justify-center gap-1">

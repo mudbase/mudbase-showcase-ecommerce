@@ -9,7 +9,7 @@ export default function RegisterScreen(): React.JSX.Element {
   const [verificationMessage, setVerificationMessage] = useState<string | null>(null);
 
   const handleOutcome = (outcome: RegisterOutcome): void => {
-    // "authenticated" needs no action here — the root layout's AuthGuard
+    // "authenticated" needs no action here - the root layout's AuthGuard
     // redirects away from (auth) the instant `user` becomes non-null.
     if (outcome.status === "verification_required") {
       setVerificationMessage(outcome.message);

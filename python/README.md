@@ -1,9 +1,9 @@
-# Mudbase Showcase — Ecommerce (Python)
+# Mudbase Showcase - Ecommerce (Python)
 
 A server-rendered **FastAPI + Jinja2** reimplementation of the reference storefront at
 [`../web`](../web), backed entirely by the real **Mudbase Python SDK**
 (`mudbase-sdk`, generated via OpenAPI Generator, published at
-[github.com/mudbase/mudbase-sdk](https://github.com/mudbase/mudbase-sdk)) — same Mudbase
+[github.com/mudbase/mudbase-sdk](https://github.com/mudbase/mudbase-sdk)) - same Mudbase
 project, same collections, same business rules, different stack and delivery model
 (request/response HTML instead of a client-side SPA talking directly to `cloud.mudbase.dev`).
 
@@ -11,7 +11,7 @@ project, same collections, same business rules, different stack and delivery mod
 
 FastAPI (async) + Jinja2 templates + vanilla CSS/JS (no bundler). Session state (the
 Mudbase JWT, refresh token, and user profile) lives only in a signed, httpOnly Starlette
-session cookie — it is never sent to browser JS, unlike the reference SPA which necessarily
+session cookie - it is never sent to browser JS, unlike the reference SPA which necessarily
 holds its token in `localStorage` for direct browser-to-Mudbase calls.
 
 ## What's implemented
@@ -30,7 +30,7 @@ holds its token in `localStorage` for direct browser-to-Mudbase calls.
 
 Every `products`/`orders`/`carts` collection read/write goes through the real
 `mudbase_sdk.DataApi` and `mudbase_sdk.AuthenticationApi` against `cloud.mudbase.dev` (see
-`app/mudbase_client.py`). Creating a Payment Link is deliberately **not** implemented here —
+`app/mudbase_client.py`). Creating a Payment Link is deliberately **not** implemented here -
 see "Known limitations" below.
 
 ## Setup
@@ -44,14 +44,14 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"   # → SESSION_SEC
 uvicorn app.main:app --reload
 ```
 
-Visit `http://localhost:8000`. Seller accounts are not self-service (see below) — sign up as
+Visit `http://localhost:8000`. Seller accounts are not self-service (see below) - sign up as
 a customer via `/register`, or log in with a pre-provisioned seller account via `/login`.
 
 ### Type checking
 
 ```bash
 pip install mypy
-mypy app   # strict mode, config in mypy.ini — should report zero issues
+mypy app   # strict mode, config in mypy.ini - should report zero issues
 ```
 
 ## Architecture notes
@@ -61,20 +61,20 @@ mypy app   # strict mode, config in mypy.ini — should report zero issues
 - Two auth endpoints bypass the generated *typed* wrapper methods in favor of the SDK's own
   public `ApiClient.param_serialize` + `ApiClient.call_api` building blocks (documented in
   detail in that file's module docstring):
-  - **Registration** (`POST /api/auth/local/signup/{role}`) — the generated
+  - **Registration** (`POST /api/auth/local/signup/{role}`) - the generated
     `RegisterWithRoleRequest` model only declares `email/password/firstName/lastName/projectId`,
     but the live endpoint's validator additionally requires `agreedToTerms` (the same gap the
     reference web app's hand-rolled TS client documents in `web/src/lib/mudbase.ts`). Its
     generated response type is also declared `void`, which would silently discard the
     token/user payload the endpoint actually returns.
-  - **Login** (`POST /api/auth/local/login`) — the generated response's nested user model has
+  - **Login** (`POST /api/auth/local/login`) - the generated response's nested user model has
     no `customRole` field (the Multi-Role feature was evidently added to the platform after
     this SDK version was generated), and `customRole` is exactly what this app needs to gate
     the seller area. Both calls parse the raw JSON response themselves instead of trusting the
     incomplete typed model, while still using `mudbase_sdk.ApiClient`'s configuration, host,
     and auth-header machinery.
 - Payment Link **creation** and **status polling** are not covered by this SDK version at all
-  (no `PaymentLinksApi`), so both go through `httpx` directly — matching how the reference
+  (no `PaymentLinksApi`), so both go through `httpx` directly - matching how the reference
   Next.js app itself calls them (plain `fetch`, not its own SDK client).
 
 ## Known limitations (real platform/architecture constraints, not bugs)
@@ -83,16 +83,16 @@ mypy app   # strict mode, config in mypy.ini — should report zero issues
 to a `localStorage` cart and migrates it into a real server-side cart at checkout, once they
 register. Carts in Mudbase are `customer`-role-only with no ownership escape hatch, and this
 app has no persistent client-side identity to bridge from a signed-out request to a signed-in
-one (no long-lived browser state at all — every request is stateless HTML). Instead: catalog
+one (no long-lived browser state at all - every request is stateless HTML). Instead: catalog
 browsing works for anyone (backed by a per-visit anonymous Mudbase session, see
 `ensure_anonymous_session`), but "Add to cart" and checkout both require being signed in as a
 `customer` first. A real production version of this pattern would need a durable
-device/browser identifier issued on first visit and carried through registration — deliberately
+device/browser identifier issued on first visit and carried through registration - deliberately
 not built here to keep this reimplementation focused on faithfully mirroring the reference
 app's *server-side* business logic rather than re-solving its client-state problem.
 
 **JSON-string array/object fields.** Mudbase Collections have no native array/object field
-type — order line items, shipping addresses, and extra product images are stored as
+type - order line items, shipping addresses, and extra product images are stored as
 JSON-encoded strings and parsed at the edges (`app/json_field.py`). Same documented platform
 constraint as `web/src/lib/json-field.ts`, not a workaround specific to this app.
 
@@ -102,7 +102,7 @@ condition the reference app's `useCart.ts` documents and guards against.
 
 **A field literally named `status` is globally blocked.** Mudbase's server-side
 role-assignment guard rejects any collection write containing a `status` key, for every
-project end-user regardless of role — the `orders` collection's status field is named
+project end-user regardless of role - the `orders` collection's status field is named
 `orderStatus` to work around this. Real platform constraint, not a typo.
 
 **File uploads require an org owner/admin/developer system role.** No project end-user,
@@ -122,11 +122,11 @@ orders appear in the seller queue without a refresh. This app is plain request/r
 the seller dashboard reflects the database state as of the last page load. Out of scope for a
 faithful-but-simpler server-rendered reimplementation, not a missing feature by oversight.
 
-**No self-service "become a seller" flow.** Matches the reference app exactly — a `seller`
+**No self-service "become a seller" flow.** Matches the reference app exactly - a `seller`
 account is assumed pre-provisioned on the Mudbase project (see `web/README.md`
 "Provisioning"); self-registration via `/register` always creates a `customer` account.
 
 **`requireEmailVerification` must be off for this project** for the login/registration flow to
 behave as implemented (immediate session on signup). If it's on, `/register` surfaces the
-"check your email, then sign in" message and does not start a session — correct, honest
+"check your email, then sign in" message and does not start a session - correct, honest
 behavior, not a crash, but checkout and cart then require a separate `/login` after verifying.

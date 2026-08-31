@@ -11,7 +11,7 @@ interface ProductCardProps {
 }
 
 /**
- * No hover-cycle gallery preview here (unlike web's ProductCard) — there is no
+ * No hover-cycle gallery preview here (unlike web's ProductCard) - there is no
  * hover state on a touchscreen. The full gallery lives on the product detail
  * screen's ImageCarousel instead, which is the honest touch-first equivalent.
  */

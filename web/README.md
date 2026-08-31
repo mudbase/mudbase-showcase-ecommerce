@@ -1,9 +1,9 @@
-# Mudbase Showcase — Ecommerce
+# Mudbase Showcase - Ecommerce
 
 **Live:** https://mudbase-showcase-ecommerce.vercel.app
 
-A production storefront built **entirely on [Mudbase](https://www.mudbase.dev)** — auth, database,
-realtime, and payments — with **zero custom backend**. This is a reference implementation: every
+A production storefront built **entirely on [Mudbase](https://www.mudbase.dev)** - auth, database,
+realtime, and payments - with **zero custom backend**. This is a reference implementation: every
 feature below links to the exact Mudbase capability it exercises, so you can clone it as a starting
 point for your own store.
 
@@ -11,7 +11,7 @@ point for your own store.
 
 Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui, talking directly to `cloud.mudbase.dev`
 from the browser. The only server-side code in this repo is one Route Handler
-(`/api/checkout/pay-link`) — see "Why a Route Handler exists" below.
+(`/api/checkout/pay-link`) - see "Why a Route Handler exists" below.
 
 ## What it demonstrates
 
@@ -34,10 +34,10 @@ This app expects a Mudbase project already set up with:
 1. Local auth enabled.
 2. Multi-Role feature initialized with two roles: the default `customer` role, and a custom
    `seller` role (`signupEndpoint: "seller"`, no approval/payment/KYC gate).
-3. Three collections — `products`, `orders`, `carts` — with the field/permission shapes documented
+3. Three collections - `products`, `orders`, `carts` - with the field/permission shapes documented
    in `plan/build-plan.md`.
 4. At least one `seller`-role account to manage the catalog (there's no self-service "become a
-   seller" flow in this UI by design — see Known Limitations).
+   seller" flow in this UI by design - see Known Limitations).
 
 `.env.example` lists every ID this app needs once that's done.
 
@@ -50,21 +50,21 @@ workaround specific to this app.
 
 **A field literally named `status` is globally protected.** Mudbase's server-side role-assignment
 guard (`enforceServerRoleAssignment.js`) blocks any collection write that includes a `status` key,
-for every project end-user regardless of their role or collection permissions — the field name
+for every project end-user regardless of their role or collection permissions - the field name
 alone triggers it, with no per-collection opt-out. The `orders` collection's status field is named
 `orderStatus` to work around this. Worth flagging back to Mudbase: this blocks a very common
 generic-workflow field name platform-wide.
 
 **File uploads require an org owner/admin/developer system role.** `rbacCheck("file", "create")`
-only allows those three roles — every project end-user, including a `seller` customRole account, is
+only allows those three roles - every project end-user, including a `seller` customRole account, is
 permanently a `viewer` system role and gets denied. Product images in this demo are entered as
 plain URLs rather than uploaded, because there's no way for the seller to upload one from this app.
 A real fix would need either a relaxed file-permission model for end-users or a server-side proxy
 that uploads on the seller's behalf using an org-level credential (the same pattern used for payment
-links below) — not built here to keep scope to tonight's storefront.
+links below) - not built here to keep scope to tonight's storefront.
 
 **Why a Route Handler exists at all (`/api/checkout/pay-link`).** Creating a Payment Link
-(`POST /api/orgs/:orgId/payment-links`) requires a live org owner/admin bearer token — there is no
+(`POST /api/orgs/:orgId/payment-links`) requires a live org owner/admin bearer token - there is no
 API-key path for it, and a project end-user's token can never carry an org role. This route holds a
 merchant session (obtained once via `MUDBASE_MERCHANT_REFRESH_TOKEN`, server-only) and calls that
 endpoint on the customer's behalf after their order is created client-side under their own account.
@@ -74,12 +74,12 @@ refresh tokens on every use. `src/lib/mudbase-server.ts` caches the rotated pair
 a warm Vercel function instance keeps working, but a cold start always falls back to the seed value
 in `MUDBASE_MERCHANT_REFRESH_TOKEN`. If a previous warm instance already rotated past that seed,
 refresh fails and checkout returns a clear "payments temporarily unavailable" error rather than
-crashing. The real fix is a durable token store (Vercel KV, Upstash, etc.) — deliberately not added
+crashing. The real fix is a durable token store (Vercel KV, Upstash, etc.) - deliberately not added
 here to keep this demo strictly Mudbase-only; noted as the natural next step for a production
 deployment.
 
 **Payment Links require the org to be KYC-approved.** This demo's org was `kycStatus: "none"` at
-launch — checkout will surface a real `403 KYC_REQUIRED` as "this store's payments are still
+launch - checkout will surface a real `403 KYC_REQUIRED` as "this store's payments are still
 pending identity verification" rather than faking a successful charge. That's the honest behavior
 once KYC is completed on the org, not a code change.
 
@@ -94,5 +94,5 @@ npm run dev
 ## Deploy
 
 Deployed to Vercel. Every env var in `.env.example` must be set as a Production environment
-variable in the Vercel project — `MUDBASE_MERCHANT_REFRESH_TOKEN` especially must **never** be
+variable in the Vercel project - `MUDBASE_MERCHANT_REFRESH_TOKEN` especially must **never** be
 prefixed `NEXT_PUBLIC_` or committed.

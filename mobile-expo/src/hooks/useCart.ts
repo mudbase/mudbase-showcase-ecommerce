@@ -10,7 +10,7 @@ interface UseCartReturn {
   items: CartItem[];
   subtotalCents: number;
   isLoading: boolean;
-  /** True when the signed-in account is not a `customer` — cart writes only exist for that role. */
+  /** True when the signed-in account is not a `customer` - cart writes only exist for that role. */
   requiresCustomerAccount: boolean;
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => Promise<void>;
   updateQuantity: (productId: string, quantity: number) => Promise<void>;
@@ -19,12 +19,12 @@ interface UseCartReturn {
 }
 
 /**
- * Server-persisted cart only — this mobile version requires signing in before
+ * Server-persisted cart only - this mobile version requires signing in before
  * browsing (see README "Deviations from the web version"), so there is no
  * guest/localStorage cart branch to merge on registration the way
  * web/src/hooks/useCart.ts has to. One document per user; Mudbase collections
  * have no native upsert, so this reads the caller's cart, then creates or
- * updates depending on whether one already exists — same pattern the web app
+ * updates depending on whether one already exists - same pattern the web app
  * uses, documented as a real platform constraint in README "Known limitations".
  */
 export function useCart(): UseCartReturn {
@@ -48,7 +48,7 @@ export function useCart(): UseCartReturn {
       if (!userId) throw new Error("A customer account is required to use the cart.");
       const itemsJson = stringifyJsonField(nextItems);
       // Re-fetch right before deciding create-vs-update rather than trusting the
-      // query cache, which can still be undefined immediately after sign-in —
+      // query cache, which can still be undefined immediately after sign-in -
       // same race the web app's useCart.ts documents and guards against.
       const res = await mudbaseClient.listDocuments(cartSchema, CARTS_COLLECTION_ID, { filter: { userId } });
       const existing = res.data[0] ?? null;

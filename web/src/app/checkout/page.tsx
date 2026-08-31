@@ -40,7 +40,7 @@ export default function CheckoutPage(): React.JSX.Element {
   if (items.length === 0) {
     return (
       <div className="container py-16 text-center">
-        <p className="text-muted-foreground">Your cart is empty — add something before checking out.</p>
+        <p className="text-muted-foreground">Your cart is empty - add something before checking out.</p>
       </div>
     )
   }
@@ -120,7 +120,7 @@ export default function CheckoutPage(): React.JSX.Element {
             {authMode === "register" ? (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Create an account to place this order — your cart carries over, and you&apos;ll be able to track
+                  Create an account to place this order - your cart carries over, and you&apos;ll be able to track
                   it from Orders afterward.
                 </p>
                 <RegisterForm onSuccess={() => void handleAccountCreated()} />
@@ -138,7 +138,7 @@ export default function CheckoutPage(): React.JSX.Element {
             ) : (
               <>
                 <p className="text-sm text-muted-foreground">
-                  Sign in to continue — your cart carries over to your account.
+                  Sign in to continue - your cart carries over to your account.
                 </p>
                 <LoginForm onSuccess={() => void handleAccountCreated()} />
                 <p className="text-sm text-muted-foreground">

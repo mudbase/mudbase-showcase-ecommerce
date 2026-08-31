@@ -1,9 +1,9 @@
 /**
- * All values here are read from EXPO_PUBLIC_* env vars — Expo's convention for
+ * All values here are read from EXPO_PUBLIC_* env vars - Expo's convention for
  * anything safe to bundle into the client binary (a project ID or collection ID
  * is not a secret; see mobile-app/SKILL.md "Configuration"). The one credential
- * that must never live here — the org owner/admin bearer session used to mint
- * Mudbase Payment Links — stays server-side inside the web app's Route Handler;
+ * that must never live here - the org owner/admin bearer session used to mint
+ * Mudbase Payment Links - stays server-side inside the web app's Route Handler;
  * this app only ever calls that proxy over HTTPS (see checkoutClient.ts).
  */
 function requireEnv(name: string, value: string | undefined): string {

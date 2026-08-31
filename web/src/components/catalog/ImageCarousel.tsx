@@ -51,7 +51,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps): React.JSX.El
           <Image
             key={src}
             src={src}
-            alt={i === 0 ? alt : `${alt} — photo ${i + 1}`}
+            alt={i === 0 ? alt : `${alt} - photo ${i + 1}`}
             fill
             priority={i === 0}
             sizes="(min-width: 768px) 50vw, 100vw"

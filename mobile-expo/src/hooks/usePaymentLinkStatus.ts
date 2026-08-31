@@ -11,7 +11,7 @@ interface UsePaymentLinkStatusReturn {
 const DEFAULT_POLL_INTERVAL_MS = 4000;
 
 /**
- * Public, unauthenticated read (GET /api/payment-links/:token) — polls until
+ * Public, unauthenticated read (GET /api/payment-links/:token) - polls until
  * the link reaches a terminal status. No SDK method exists for this endpoint
  * (it is intentionally outside the authenticated Data/Auth APIs so a shopper
  * can check payment status without any Mudbase session), so this hook calls

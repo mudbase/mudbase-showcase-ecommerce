@@ -10,7 +10,7 @@ interface UsePaymentLinkStatusReturn {
   error: string | null
 }
 
-/** Public, unauthenticated read — polls until the link reaches a terminal status. */
+/** Public, unauthenticated read - polls until the link reaches a terminal status. */
 export function usePaymentLinkStatus(token: string, intervalMs = 4000): UsePaymentLinkStatusReturn {
   const [link, setLink] = useState<PublicPaymentLink | null>(null)
   const [loading, setLoading] = useState(true)

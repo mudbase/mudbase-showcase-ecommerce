@@ -28,7 +28,7 @@
     if (link.status === "paid") {
       panel.innerHTML =
         '<div class="pay-row"><strong>Complete your payment</strong>' + badge + '</div>' +
-        '<p style="color:var(--color-success)">Payment received — thank you!</p>';
+        '<p style="color:var(--color-success)">Payment received - thank you!</p>';
       return;
     }
     if (link.status === "expired" || link.status === "cancelled") {
@@ -39,7 +39,7 @@
     }
     panel.innerHTML =
       '<div class="pay-row"><strong>Complete your payment</strong>' + badge + '</div>' +
-      '<p class="muted">Waiting for payment — this page updates automatically.</p>' +
+      '<p class="muted">Waiting for payment - this page updates automatically.</p>' +
       '<div class="pay-row"><span class="muted">Amount</span><span>' + link.amount + ' ' + link.currency + '</span></div>' +
       '<div class="pay-row"><span class="muted">Network</span><span>' + link.network + '</span></div>' +
       '<div class="pay-row"><span class="muted">Send to</span><span class="pay-address">' + link.address + '</span></div>';

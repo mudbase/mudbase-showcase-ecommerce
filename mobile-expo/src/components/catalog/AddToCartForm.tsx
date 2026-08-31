@@ -42,7 +42,7 @@ export function AddToCartForm({ product }: { product: Product }): React.JSX.Elem
     );
   }
 
-  const label = outOfStock ? "Out of stock" : status === "added" ? "Added to cart" : status === "error" ? "Couldn't add — try again" : "Add to cart";
+  const label = outOfStock ? "Out of stock" : status === "added" ? "Added to cart" : status === "error" ? "Couldn't add - try again" : "Add to cart";
 
   return (
     <View className="gap-2">

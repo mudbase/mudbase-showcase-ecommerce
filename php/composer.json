@@ -1,6 +1,6 @@
 {
     "name": "mudbase/showcase-ecommerce-php",
-    "description": "Commonwealth Goods storefront — PHP reimplementation of the Mudbase showcase ecommerce app. Plain PHP, no framework, backed entirely by the real Mudbase PHP SDK.",
+    "description": "Commonwealth Goods storefront - PHP reimplementation of the Mudbase showcase ecommerce app. Plain PHP, no framework, backed entirely by the real Mudbase PHP SDK.",
     "type": "project",
     "license": "unlicense",
     "require": {

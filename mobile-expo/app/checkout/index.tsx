@@ -17,7 +17,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 
 /**
  * Payment amount/currency/network are fixed to match the web reference app's
- * checkout exactly (web/src/app/checkout/page.tsx) — Mudbase Payment Links in
+ * checkout exactly (web/src/app/checkout/page.tsx) - Mudbase Payment Links in
  * this demo settle in USDC on Polygon.
  */
 const PAYMENT_CURRENCY = "USDC";
@@ -59,8 +59,8 @@ export default function CheckoutScreen(): React.JSX.Element {
 
       if (!result.ok) {
         // No payment link could be created for ANY failure reason (kyc_required,
-        // merchant auth failure, or an unknown/5xx from the proxy — e.g. this demo
-        // org's undocumented-to-the-client "no payment merchant configured" 502) —
+        // merchant auth failure, or an unknown/5xx from the proxy - e.g. this demo
+        // org's undocumented-to-the-client "no payment merchant configured" 502) -
         // roll the order back to "pending" in every case, not just kyc_required.
         // Leaving it at "awaiting_payment" with no paymentLinkToken is a stuck,
         // unrecoverable order: it can never reach a payment screen (no token to
@@ -92,7 +92,7 @@ export default function CheckoutScreen(): React.JSX.Element {
   if (items.length === 0) {
     return (
       <SafeAreaView className="flex-1 items-center justify-center bg-background px-6">
-        <Text className="text-center text-muted-foreground">Your cart is empty — add something before checking out.</Text>
+        <Text className="text-center text-muted-foreground">Your cart is empty - add something before checking out.</Text>
       </SafeAreaView>
     );
   }

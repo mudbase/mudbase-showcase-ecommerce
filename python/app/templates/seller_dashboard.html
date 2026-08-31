@@ -3,12 +3,12 @@
 {% block content %}
   <section class="section">
     <h1>Orders</h1>
-    <p class="muted text-sm" style="margin-bottom:1.25rem;">Fulfillment queue — all customer orders, newest first.</p>
+    <p class="muted text-sm" style="margin-bottom:1.25rem;">Fulfillment queue - all customer orders, newest first.</p>
 
     {% if orders_error %}
       <p class="error-state">{{ orders_error }}</p>
     {% elif not orders %}
-      <div class="empty-state">No orders yet — they&apos;ll appear here once a customer checks out.</div>
+      <div class="empty-state">No orders yet - they&apos;ll appear here once a customer checks out.</div>
     {% else %}
       <div class="order-list">
         {% for order in orders %}

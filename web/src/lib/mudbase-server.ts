@@ -5,7 +5,7 @@ import { MUDBASE_URL } from "./config"
  * Server-only merchant client. Payment Link creation is an org owner/admin bearer-token endpoint
  * with no API-key path (see plan/build-plan.md "Payment Flow"), so this module holds a live
  * session for the org owner, obtained once during provisioning and refreshed on demand. It is
- * imported only from Route Handlers — `server-only` makes any accidental client import a build
+ * imported only from Route Handlers - `server-only` makes any accidental client import a build
  * error, and none of these values are ever sent to the browser.
  *
  * Refresh tokens rotate on every use (platform-enforced, single-use). A stateless serverless
@@ -147,7 +147,7 @@ export async function createOrderPaymentLink(params: CreatePaymentLinkParams): P
     return {
       ok: false,
       reason: "kyc_required",
-      message: body.error ?? "This store's identity verification is still pending — payments are not yet available.",
+      message: body.error ?? "This store's identity verification is still pending - payments are not yet available.",
     }
   }
 

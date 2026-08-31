@@ -12,7 +12,7 @@ const NON_NEGATIVE_INT = /^\d+$/;
 
 /**
  * Every numeric field is validated (and typed) as a string, not coerced to a
- * number inside the schema — RN's TextInput only ever emits strings via
+ * number inside the schema - RN's TextInput only ever emits strings via
  * onChangeText, and mixing z.coerce.number() into the same generic RHF uses
  * for both the Controller's `value`/`onChange` types AND the validated submit
  * type produces a real type mismatch (TextInput hands onChange a string; the
@@ -45,7 +45,7 @@ const productFormSchema = z
 
 export type ProductFormValues = z.infer<typeof productFormSchema>;
 
-// A `type` alias (not `interface`) — plain object type aliases are assignable
+// A `type` alias (not `interface`) - plain object type aliases are assignable
 // to `Record<string, unknown>` (what useCreateDocument/useUpdateDocument
 // expect), while `interface` declarations are not, even with identical shape;
 // TypeScript only infers an implicit index signature for the former.
@@ -204,7 +204,7 @@ export function ProductForm({ initialValues, onSave, submitLabel = "Save product
         />
         <Text className="text-xs text-muted-foreground">
           Mudbase file uploads require an owner/admin/developer role, which project end-users (sellers included)
-          don&apos;t have — see README &quot;Known limitations&quot;. Paste a hosted image URL for now.
+          don&apos;t have - see README &quot;Known limitations&quot;. Paste a hosted image URL for now.
         </Text>
       </View>
 

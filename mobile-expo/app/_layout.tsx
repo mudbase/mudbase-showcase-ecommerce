@@ -9,7 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 
 /**
  * This mobile version requires signing in (as a customer or seller) before
- * browsing — unlike the web reference app's anonymous-guest-first flow. See
+ * browsing - unlike the web reference app's anonymous-guest-first flow. See
  * README "Deviations from the web version" for why: it removes an entire
  * guest-cart/localStorage-merge code path (web/src/hooks/useCart.ts's
  * migrateGuestCartToServer) for a simpler, equally real mobile flow, since

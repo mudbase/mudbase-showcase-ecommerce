@@ -1,7 +1,7 @@
-# Mudbase Showcase — Ecommerce (Go)
+# Mudbase Showcase - Ecommerce (Go)
 
-A server-rendered Go reimplementation of the [Next.js reference storefront](../web) — same
-Mudbase project, same collections, same business rules — built against the real
+A server-rendered Go reimplementation of the [Next.js reference storefront](../web) - same
+Mudbase project, same collections, same business rules - built against the real
 [Mudbase Go SDK](https://github.com/mudbase/mudbase-sdk) (`github.com/mudbase/mudbase-sdk/go`).
 
 Stack: Go's standard `net/http` + [chi](https://github.com/go-chi/chi) for routing,

@@ -1,16 +1,16 @@
-# Commonwealth Goods (Ruby) — Mudbase Showcase Ecommerce
+# Commonwealth Goods (Ruby) - Mudbase Showcase Ecommerce
 
-A production storefront built **entirely on [Mudbase](https://www.mudbase.dev)** — auth,
+A production storefront built **entirely on [Mudbase](https://www.mudbase.dev)** - auth,
 database, and payments, with **zero custom backend** for data. This is the Ruby
 reimplementation of the reference storefront (see the companion Next.js app at `../web`):
-same Mudbase project, same collections, same field shapes, same payment-link delegation —
+same Mudbase project, same collections, same field shapes, same payment-link delegation -
 different stack. Server-rendered with **Sinatra + ERB**, talking to `cloud.mudbase.dev`
 through the real generated **Mudbase Ruby SDK** (`mudbase_sdk`, module `MudbaseSDK`).
 
 ## Stack
 
 Sinatra 4 + ERB + Rack::Session::Cookie, `mudbase_sdk` (git-sourced), Puma. No ORM, no
-database of its own — every read/write goes to Mudbase's Collections REST API.
+database of its own - every read/write goes to Mudbase's Collections REST API.
 
 ## What it demonstrates
 
@@ -32,7 +32,7 @@ This app expects a Mudbase project already set up with:
 1. Local auth enabled.
 2. Multi-Role feature initialized with two roles: the default `customer` role, and a custom
    `seller` role (`signupEndpoint: "seller"`, no approval/payment/KYC gate).
-3. Three collections — `products`, `orders`, `carts` — with the field/permission shapes
+3. Three collections - `products`, `orders`, `carts` - with the field/permission shapes
    documented in `../web/plan/build-plan.md` (same project as every other per-language
    reimplementation of this storefront).
 4. At least one `seller`-role account to manage the catalog (there is no self-service
@@ -64,7 +64,7 @@ ffi-x.y.z... has:
 
 first try `gem install ffi -v '~> 1.17'` on its own to confirm a prebuilt binary gem is
 available for your platform before touching the vendored SDK gemspec (do not edit it directly
-— the fix belongs in this app's own Gemfile, which is exactly what the `ffi` pin above does).
+- the fix belongs in this app's own Gemfile, which is exactly what the `ffi` pin above does).
 
 ### Verifying the app
 
@@ -99,9 +99,9 @@ demo are entered as plain URLs rather than uploaded (`views/seller/product_form.
 
 **Payment Link creation is delegated to the reference web app, on purpose.** Creating a
 Payment Link (`POST /api/orgs/:orgId/payment-links`) requires a live org owner/admin bearer
-token — there is no API-key path for it, and the generated Ruby SDK has **no dedicated Payment
+token - there is no API-key path for it, and the generated Ruby SDK has **no dedicated Payment
 Links API class at all** (confirmed by grepping every `lib/mudbase_sdk/api/*.rb` file in the
-gem — it isn't part of the OpenAPI surface this client was generated from). Rather than mint
+gem - it isn't part of the OpenAPI surface this client was generated from). Rather than mint
 and hold that merchant credential in yet another per-language reimplementation of this same
 storefront (a real race condition the moment two of them rotate the same single-use merchant
 refresh token concurrently), this app POSTs to the already-deployed Next.js reference app's
@@ -112,11 +112,11 @@ surfaces an honest "payments pending identity verification" message rather than 
 **Generated-SDK gaps this app works around, not by editing the vendored gem** (updated after a
 2026-07-31 SDK regen fixed two of the three original gaps):
 
-1. ~~`MultiRoleFeatureApi#register_with_role` generated with return type `nil`~~ — **fixed by
+1. ~~`MultiRoleFeatureApi#register_with_role` generated with return type `nil`~~ - **fixed by
    the regen.** `register_with_role_with_http_info` now defaults `return_type` to the real typed
    `RegisterWithRole201Response` (and its `RegisterWithRole201ResponseUser` submodel declares
    `custom_role`), so the signup response is no longer silently discarded even without any
-   override. ~~`RegisterWithRoleRequest` doesn't declare `agreedToTerms`~~ — **fixed by the
+   override. ~~`RegisterWithRoleRequest` doesn't declare `agreedToTerms`~~ - **fixed by the
    regen.** The model now declares `agreed_to_terms` (wire key `agreedToTerms`, setter rejects
    `nil`) as a normal constructor argument, so the old `debug_body:` JSON-splice hack for this
    field is gone. `AuthService.register_customer!` still passes `debug_return_type: "Object"`
@@ -142,7 +142,7 @@ surfaces an honest "payments pending identity verification" message rather than 
 Every generated `*Api` class defaults to `MudbaseSDK::Configuration.default` /
 `MudbaseSDK::ApiClient.default`, both process-wide singletons. Calling the documented
 `MudbaseSDK.configure { |c| c.access_token = jwt }` per request would mutate that shared
-singleton — a real race condition in a multi-threaded Puma server, where request A could pick
+singleton - a real race condition in a multi-threaded Puma server, where request A could pick
 up request B's bearer token. This app instead builds a fresh `Configuration.new` +
 `ApiClient.new(config)` per request and hands it explicitly into every generated API
 constructor (`lib/mudbase/client_factory.rb`).
@@ -151,16 +151,16 @@ constructor (`lib/mudbase/client_factory.rb`).
 anonymous Mudbase session on first load so guests can browse and cart before creating an
 account), this Ruby reimplementation was scoped without that requirement. Since the `products`
 collection's read permission is granted to the `authenticated` role only (not a public/
-anonymous role), every page here — including the catalog — requires signing in first. A guest
+anonymous role), every page here - including the catalog - requires signing in first. A guest
 flow could be added the same way `AuthService.login!` works today, using
 `MudbaseSDK::AuthenticationApi#create_anonymous_session`.
 
 **Refresh-token rotation.** The Mudbase-issued JWT and its single-use, rotate-on-use refresh
 token are held server-side in an httponly, signed+encrypted Rack session cookie
-(`Rack::Session::Cookie`) — never sent to client JavaScript. Every route that talks to Mudbase
+(`Rack::Session::Cookie`) - never sent to client JavaScript. Every route that talks to Mudbase
 routes its access token through `SessionHelpers#with_access_token`, which mirrors the reference
 Next.js app's `MudbaseClient#request` retry wrapper: it proactively refreshes a token within 60
-seconds of its tracked expiry, and — the same as that wrapper — reactively refreshes and retries
+seconds of its tracked expiry, and - the same as that wrapper - reactively refreshes and retries
 exactly once on a real `401` from the server (clock drift, a token revoked out from under a live
 session, etc.), via `AuthService.refresh!` (`MudbaseSDK::AuthenticationApi#refresh_token`). Only
 when the refresh token itself is rejected does the session actually get logged out - that
@@ -178,6 +178,6 @@ bundle exec puma -p 4567 config.ru
 ## Deploy
 
 Any Ruby host that runs Puma behind `config.ru` (Fly.io, Render, a bare VPS with systemd) works
-unmodified. Set every variable in `.env.example` as a real environment variable —
+unmodified. Set every variable in `.env.example` as a real environment variable -
 `SESSION_SECRET` must be a long random value distinct from any other app's secret, and
 `RACK_ENV=production` turns on the `secure` cookie flag (HTTPS-only session cookie).

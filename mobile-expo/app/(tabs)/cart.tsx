@@ -14,7 +14,7 @@ export default function CartScreen(): React.JSX.Element {
         <Text className="font-semibold text-2xl text-foreground">Your cart</Text>
         {requiresCustomerAccount ? (
           <Text className="text-sm text-muted-foreground">
-            Signed in as a seller — sign in with a customer account to shop.
+            Signed in as a seller - sign in with a customer account to shop.
           </Text>
         ) : isLoading ? (
           <LoadingBlock className="h-40" />

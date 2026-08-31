@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-  <title>Seller dashboard — Commonwealth Goods</title>
+  <title>Seller dashboard - Commonwealth Goods</title>
   <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
 </head>
 <body>
@@ -13,7 +13,7 @@
     <p class="muted" style="margin-bottom:20px">The fulfillment queue - every order across every customer.</p>
 
     <div th:if="${orders.isEmpty()}" class="empty-state">
-      <p>No orders yet — they'll appear here the instant one comes in.</p>
+      <p>No orders yet - they'll appear here the instant one comes in.</p>
     </div>
 
     <ul th:unless="${orders.isEmpty()}" class="line-list">

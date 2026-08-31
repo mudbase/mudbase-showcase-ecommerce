@@ -106,7 +106,7 @@ final class AuthController
         }
 
         try {
-            $session = $ctx->mudbase->registerWithRole('customer', $email, $password, $firstName, $lastName);
+            $session = $ctx->mudbase->registerWithRole('customer', $email, $password, $firstName, $lastName, $agreedToTerms);
         } catch (MudbaseApiError $e) {
             Flash::set('error', $e->getMessage());
             Response::redirect('/register');
@@ -148,7 +148,7 @@ final class AuthController
         // request as.
         $ctx = AppContext::current();
         AppContext::set(new AppContext(
-            mudbase: $ctx->mudbase->withToken($session['token']),
+            mudbase: $ctx->mudbase->withToken($session['token'], $session['refreshToken']),
             user: $session['user'],
             cart: $ctx->cart,
             productsCollectionId: $ctx->productsCollectionId,

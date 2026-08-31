@@ -16,11 +16,11 @@
 
           <p class="payment-status" data-status-message>
             {% if link.status.value == "paid" %}
-              <span class="status-paid">Payment received — thank you!</span>
+              <span class="status-paid">Payment received - thank you!</span>
             {% elif link.status.value in ("expired", "cancelled") %}
               <span class="status-dead">This payment link is no longer active.</span>
             {% else %}
-              <span class="status-pending">Waiting for payment — this page updates automatically.</span>
+              <span class="status-pending">Waiting for payment - this page updates automatically.</span>
             {% endif %}
           </p>
 

@@ -53,7 +53,7 @@ export function ImageCarousel({ images, alt }: ImageCarouselProps): React.JSX.El
           <Image
             key={src}
             source={src}
-            accessibilityLabel={i === 0 ? alt : `${alt} — photo ${i + 1}`}
+            accessibilityLabel={i === 0 ? alt : `${alt} - photo ${i + 1}`}
             style={{ width: carouselWidth, height: carouselWidth }}
             contentFit="cover"
             transition={200}

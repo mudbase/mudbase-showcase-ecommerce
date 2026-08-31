@@ -25,7 +25,7 @@ function messageFrom(err: unknown, fallback: string): string {
 }
 
 /**
- * A plain in-memory zustand store, not persisted via MMKV/AsyncStorage — the
+ * A plain in-memory zustand store, not persisted via MMKV/AsyncStorage - the
  * only durable state is the token pair in SecureStore (mudbaseClient owns
  * that). On cold start, initialize() reloads the token pair and re-derives
  * `user` from a fresh getSession() call, so there is nothing here that could

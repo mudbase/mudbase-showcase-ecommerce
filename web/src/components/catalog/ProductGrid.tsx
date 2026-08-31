@@ -51,7 +51,7 @@ export function ProductGrid(): React.JSX.Element {
       {products.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border py-16 text-center">
           <p className="text-muted-foreground">
-            {category ? `No products in "${category}" yet.` : "No products listed yet — check back soon."}
+            {category ? `No products in "${category}" yet.` : "No products listed yet - check back soon."}
           </p>
         </div>
       ) : (

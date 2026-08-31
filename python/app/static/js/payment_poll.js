@@ -18,13 +18,13 @@
     badge.textContent = link.status;
 
     if (link.status === "paid") {
-      message.innerHTML = '<span class="status-paid">Payment received — thank you!</span>';
+      message.innerHTML = '<span class="status-paid">Payment received - thank you!</span>';
       pendingDetails.style.display = "none";
     } else if (link.status === "expired" || link.status === "cancelled") {
       message.innerHTML = '<span class="status-dead">This payment link is no longer active.</span>';
       pendingDetails.style.display = "none";
     } else {
-      message.innerHTML = '<span class="status-pending">Waiting for payment — this page updates automatically.</span>';
+      message.innerHTML = '<span class="status-pending">Waiting for payment - this page updates automatically.</span>';
       pendingDetails.style.display = "";
       if (amountField) amountField.textContent = `${link.amount ?? ""} ${link.currency ?? ""}`.trim();
       if (networkField) networkField.textContent = link.network ?? "";

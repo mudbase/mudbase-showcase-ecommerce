@@ -6,7 +6,7 @@
       <h1>Checkout</h1>
 
       {% if not cart or not cart.items %}
-        <p class="muted">Your cart is empty — add something before checking out.</p>
+        <p class="muted">Your cart is empty - add something before checking out.</p>
       {% else %}
         {% if form_error %}<div class="form-error" role="alert">{{ form_error }}</div>{% endif %}
 

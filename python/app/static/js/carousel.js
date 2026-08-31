@@ -1,4 +1,4 @@
-// Small vanilla-JS image carousel for the product detail page — no bundler,
+// Small vanilla-JS image carousel for the product detail page - no bundler,
 // no framework. Mirrors the interaction shape of the reference app's
 // ImageCarousel.tsx (prev/next buttons + dot navigation), minus autoplay.
 (function () {

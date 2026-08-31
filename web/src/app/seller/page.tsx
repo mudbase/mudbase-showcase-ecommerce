@@ -12,7 +12,7 @@ export default function SellerDashboardPage(): React.JSX.Element {
       <div className="container space-y-12 py-10">
         <section>
           <h1 className="mb-1 font-display text-2xl font-semibold tracking-tight">Orders</h1>
-          <p className="mb-6 text-sm text-muted-foreground">Updates live over Mudbase realtime — no refresh needed.</p>
+          <p className="mb-6 text-sm text-muted-foreground">Updates live over Mudbase realtime - no refresh needed.</p>
           <SellerOrderQueue />
         </section>
 

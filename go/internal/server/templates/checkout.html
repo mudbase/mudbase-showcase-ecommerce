@@ -1,6 +1,6 @@
 {{define "content"}}
 {{if .IsEmpty}}
-<div class="empty-state"><p>Your cart is empty — add something before checking out.</p></div>
+<div class="empty-state"><p>Your cart is empty - add something before checking out.</p></div>
 {{else}}
 <div class="checkout-grid">
   <div>
@@ -8,7 +8,7 @@
 
     {{if not .IsCustomer}}
       {{if eq .AuthMode "login"}}
-        <p class="muted">Sign in to continue — your cart carries over to your account.</p>
+        <p class="muted">Sign in to continue - your cart carries over to your account.</p>
         <form method="post" action="/checkout/login" class="stacked">
           <div class="field">
             <label for="email">Email</label>
@@ -22,7 +22,7 @@
         </form>
         <p class="muted">New here? <a href="/checkout?authMode=register">Create an account</a></p>
       {{else}}
-        <p class="muted">Create an account to place this order — your cart carries over, and you'll be able to track it from Orders afterward.</p>
+        <p class="muted">Create an account to place this order - your cart carries over, and you'll be able to track it from Orders afterward.</p>
         <form method="post" action="/checkout/register" class="stacked">
           <div class="field-row">
             <div class="field">

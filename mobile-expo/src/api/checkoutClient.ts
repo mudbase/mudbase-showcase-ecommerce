@@ -15,7 +15,7 @@ export type CreatePaymentLinkResult =
   | { ok: false; reason: "other"; message: string };
 
 /**
- * Creating a Mudbase Payment Link requires an org owner/admin bearer token —
+ * Creating a Mudbase Payment Link requires an org owner/admin bearer token -
  * there is no API-key path for it, and a project end-user's token (what this
  * app holds) can never carry an org role. That credential must never ship
  * inside a mobile binary, so this app never calls Mudbase's payment-links

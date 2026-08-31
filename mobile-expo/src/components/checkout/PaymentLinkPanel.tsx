@@ -31,7 +31,7 @@ export function PaymentLinkPanel({ token }: { token: string }): React.JSX.Elemen
       {link.status === "paid" ? (
         <View className="flex-row items-center gap-2">
           <CheckCircle2 size={20} color="#16794f" />
-          <Text className="text-success">Payment received — thank you!</Text>
+          <Text className="text-success">Payment received - thank you!</Text>
         </View>
       ) : link.status === "expired" || link.status === "cancelled" ? (
         <View className="flex-row items-center gap-2">
@@ -42,7 +42,7 @@ export function PaymentLinkPanel({ token }: { token: string }): React.JSX.Elemen
         <>
           <View className="flex-row items-center gap-2">
             <Clock size={16} color="#6b615a" />
-            <Text className="text-sm text-muted-foreground">Waiting for payment — this screen updates automatically.</Text>
+            <Text className="text-sm text-muted-foreground">Waiting for payment - this screen updates automatically.</Text>
           </View>
           <View className="gap-2">
             <View className="flex-row justify-between">

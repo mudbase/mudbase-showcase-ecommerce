@@ -3,7 +3,7 @@ import { Stack, router } from "expo-router";
 import { useAuth } from "@/hooks/useAuth";
 
 /**
- * UX-level gating only — real authorization is enforced server-side by
+ * UX-level gating only - real authorization is enforced server-side by
  * Mudbase's collection permissions (seller role → unconditional read/update
  * on `orders`, full CRUD on `products`; a customer token gets a real 403 on
  * these same calls). Mirrors web/src/components/seller/SellerGuard.tsx.

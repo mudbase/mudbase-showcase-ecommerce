@@ -81,7 +81,7 @@ export function ProductGrid(): React.JSX.Element {
       }
       ListEmptyComponent={
         <View className="px-2.5">
-          <EmptyState message={category ? `No products in "${category}" yet.` : "No products listed yet — check back soon."} />
+          <EmptyState message={category ? `No products in "${category}" yet.` : "No products listed yet - check back soon."} />
         </View>
       }
       removeClippedSubviews

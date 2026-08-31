@@ -1,7 +1,7 @@
-# Mudbase Showcase — Flutter
+# Mudbase Showcase - Flutter
 
-A Flutter reimplementation of the [Mudbase Showcase ecommerce storefront](../web) — catalog, cart,
-checkout with Mudbase Payment Links, order history, and a seller fulfillment dashboard — talking
+A Flutter reimplementation of the [Mudbase Showcase ecommerce storefront](../web) - catalog, cart,
+checkout with Mudbase Payment Links, order history, and a seller fulfillment dashboard - talking
 directly to `cloud.mudbase.dev` through the real, generated **Mudbase Dart SDK**
 (`mudbase_sdk`, [github.com/mudbase/mudbase-sdk](https://github.com/mudbase/mudbase-sdk),
 `dart/` subdirectory).
@@ -15,7 +15,7 @@ otherwise defaults to.
 
 ## Setup
 
-The Mudbase Dart SDK is **not published to pub.dev** — `pubspec.yaml` references it as a relative
+The Mudbase Dart SDK is **not published to pub.dev** - `pubspec.yaml` references it as a relative
 path dependency assuming a sibling-clone layout:
 
 ```yaml
@@ -65,7 +65,7 @@ flutter run --dart-define-from-file=dart_define.json
 
 ### Config (`--dart-define-from-file`, this project's Flutter convention)
 
-Never a runtime `.env` file — every value is read via `String.fromEnvironment` in
+Never a runtime `.env` file - every value is read via `String.fromEnvironment` in
 `lib/config/env_config.dart`. `dart_define.example.json` documents every key:
 
 | Key | Required | Notes |
@@ -81,7 +81,7 @@ Never a runtime `.env` file — every value is read via `String.fromEnvironment`
 if any required key is missing, rather than surfacing a confusing 404/401 on the first screen that
 reads an empty collection ID.
 
-There is **no merchant/org secret anywhere in this app** — Payment Link creation is fully delegated
+There is **no merchant/org secret anywhere in this app** - Payment Link creation is fully delegated
 to the already-deployed web app's Route Handler (see "Payments" below), so nothing privileged ever
 ships inside the mobile bundle.
 
@@ -101,7 +101,7 @@ ships inside the mobile bundle.
 ## Auth flow (a deliberate simplification vs. the web app)
 
 The web app supports anonymous guest browsing that converts to a real account at checkout. This
-mobile app requires sign-in (login or register) before browsing at all — the brief explicitly
+mobile app requires sign-in (login or register) before browsing at all - the brief explicitly
 allowed either approach, and the anonymous-guest flow's main value (browse-before-committing) is
 weaker on mobile, where installing the app is already a bigger commitment than opening a web page.
 This also sidesteps guest-cart-in-local-storage-then-merge-on-registration entirely, which is real
@@ -109,13 +109,13 @@ complexity the web app carries (see `web/src/hooks/useCart.ts`'s `migrateGuestCa
 this app doesn't need.
 
 Self-signup is always the `customer` role (`RegisterScreen`, role hidden). There is no self-service
-"become a seller" flow — a `seller` account is seeded once during Mudbase project provisioning, same
+"become a seller" flow - a `seller` account is seeded once during Mudbase project provisioning, same
 as the web app.
 
 ## Payments
 
 Creating a Mudbase Payment Link (`POST /api/orgs/:orgId/payment-links`) requires a live org
-owner/admin bearer token — there is no API-key path for it, and a project end-user's token (what
+owner/admin bearer token - there is no API-key path for it, and a project end-user's token (what
 this app ever holds) can never carry an org role. So checkout never calls that endpoint directly;
 it POSTs to the **already-deployed web app's** `/api/checkout/pay-link` Route Handler
 (`lib/core/checkout_proxy_service.dart`), which holds that merchant credential server-side and
@@ -133,15 +133,15 @@ faking a success.
 - **Riverpod without code generation.** `flutter/SKILL.md`'s default stack uses
   `riverpod_generator` + `freezed` + `build_runner`. This app uses plain `Notifier`/`AsyncNotifier`
   classes and hand-written model classes instead, specifically because this environment could not
-  install the Flutter SDK to iteratively verify `build_runner` output locally — every provider and
+  install the Flutter SDK to iteratively verify `build_runner` output locally - every provider and
   model here is verifiable by `dart analyze` alone, with no generated-code step that could silently
   drift from its source annotations between local writing and the first real `flutter pub get`.
 - **No Socket.IO / realtime seller dashboard.** The web app subscribes to a `db:create`/`db:update`
-  WebSocket room for live order updates. This app uses pull-to-refresh and manual refresh instead —
+  WebSocket room for live order updates. This app uses pull-to-refresh and manual refresh instead -
   simpler, and the brief didn't call for realtime specifically for the mobile version.
 - **Category/search filtering is client-side.** The catalog screen fetches every active product
   once per visit and filters by category/search locally, rather than re-querying Mudbase on every
-  keystroke or chip tap — appropriate at this showcase's catalog scale, and it means switching
+  keystroke or chip tap - appropriate at this showcase's catalog scale, and it means switching
   filters never shows a loading flicker.
 
 ## Known limitations (real platform/SDK constraints, not bugs)
@@ -201,7 +201,7 @@ first and creates only if none exists, same read-then-create-or-update pattern a
 ## Testing
 
 `test/` covers the pure-logic layer with `flutter_test` (JSON field parsing, money/date formatting,
-and the `Product`/`Cart`/`Order` model parsing, including the `orderStatus` wire-value mapping) —
+and the `Product`/`Cart`/`Order` model parsing, including the `orderStatus` wire-value mapping) -
 run with:
 
 ```bash

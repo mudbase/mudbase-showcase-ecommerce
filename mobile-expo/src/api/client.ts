@@ -12,10 +12,10 @@ import { secureStorage, STORAGE_KEYS } from "./secureStorage";
 import { authResultSchema, mudbaseUserSchema, type AuthResult, type MudbaseUser } from "./schemas";
 
 /**
- * Thin, typed wrapper around the real generated `mudbase-sdk` — NOT a
+ * Thin, typed wrapper around the real generated `mudbase-sdk` - NOT a
  * unified client the SDK doesn't have. Every call below is a real generated
  * method (`AuthenticationApi`/`MultiRoleFeatureApi`/`DataApi` instances, one
- * per resource — see the "SDK dependency" note in README.md). This file only
+ * per resource - see the "SDK dependency" note in README.md). This file only
  * adds: token storage (SecureStore, never AsyncStorage), a single-retry-on-401
  * refresh, and zod-validated narrowing of the generated response types where
  * they under-describe the real payload (documented per field below).
@@ -23,13 +23,13 @@ import { authResultSchema, mudbaseUserSchema, type AuthResult, type MudbaseUser 
  * Calling convention: every generated `*Api` class method below takes a
  * single `requestParameters` object (e.g. `loginLocalUser({ loginLocalUserRequest: {...} })`,
  * `getData({ projectId, collectionId, documentId })`), NOT the positional
- * arguments shown in the SDK's docs/*.md examples — those examples are
+ * arguments shown in the SDK's docs/*.md examples - those examples are
  * generated from an older calling convention and no longer match the actual
  * `dist/api.js` class methods in the currently vendored SDK build. Calling
  * positionally throws a client-side `RequiredError` before any request
  * reaches the network (e.g. "Required parameter role was null or undefined"),
  * which is silent and easy to miss if you only read the docs and never
- * exercised the call against the live project — verified the hard way while
+ * exercised the call against the live project - verified the hard way while
  * QAing this app end-to-end.
  */
 
@@ -65,7 +65,7 @@ interface ListDocumentsOptions {
 
 /**
  * The currently vendored SDK's generated `RegisterWithRole201Response` model
- * (dist/api.d.ts) is a real, filled-in shape — not `void` — and its request
+ * (dist/api.d.ts) is a real, filled-in shape - not `void` - and its request
  * model already includes `agreedToTerms` as a required field. This alias no
  * longer adds anything over `RegisterWithRoleRequest` itself; kept as a named
  * type (rather than inlined) only so a future SDK regeneration that narrows
@@ -139,19 +139,19 @@ class MudbaseClient {
   /**
    * Mudbase access tokens are short-lived (~30 min per AuthenticationApi.md's
    * "expiresIn" description). Refresh tokens rotate on every use and a reused
-   * one revokes the session (platform reuse-detection) — so this in-flight
+   * one revokes the session (platform reuse-detection) - so this in-flight
    * promise is shared across concurrent 401s to guarantee at most one refresh
    * call per expiry, never a stampede that would trip reuse-detection itself.
    */
   private async refreshSession(): Promise<void> {
     if (!this.refreshTokenValue) {
-      throw new MudbaseApiError("No refresh token available — sign in again.", 401);
+      throw new MudbaseApiError("No refresh token available - sign in again.", 401);
     }
     if (!this.refreshing) {
       this.refreshing = (async (): Promise<void> => {
         // The generated `AuthenticationApi` class (unlike the positional-args
         // shape shown in docs/AuthenticationApi.md) takes a single
-        // requestParameters object wrapping the actual request body — see
+        // requestParameters object wrapping the actual request body - see
         // `AuthenticationApiRefreshTokenRequest` in dist/api.d.ts. Every SDK
         // call in this file follows that same object-parameter convention;
         // calling positionally throws a client-side RequiredError before any
@@ -195,7 +195,7 @@ class MudbaseClient {
   }): Promise<RegisterOutcome> {
     const body: RegisterWithRoleRequestBody = { ...input, projectId: MUDBASE_PROJECT_ID, agreedToTerms: true };
     try {
-      // Self-signup is always the "customer" role — seller accounts are
+      // Self-signup is always the "customer" role - seller accounts are
       // provisioned once, out of band, with no self-service UI (see README
       // "Known limitations", mirroring web/README.md's own Provisioning note).
       const res = await this.multiRoleApi.registerWithRole({ role: "customer", registerWithRoleRequest: body });
@@ -241,7 +241,7 @@ class MudbaseClient {
     try {
       await this.authApi.logoutLocalUser();
     } catch {
-      // Best-effort server-side revoke — always clear local tokens regardless.
+      // Best-effort server-side revoke - always clear local tokens regardless.
     } finally {
       await this.clearTokens();
     }

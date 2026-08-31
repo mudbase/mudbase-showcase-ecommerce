@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
-  <title>Checkout — Commonwealth Goods</title>
+  <title>Checkout - Commonwealth Goods</title>
   <th:block th:replace="~{fragments/layout :: head-assets}"></th:block>
 </head>
 <body>
@@ -9,7 +9,7 @@
 
 <main class="container">
   <div th:if="${cartEmpty}" class="empty-state">
-    <p>Your cart is empty — add something before checking out.</p>
+    <p>Your cart is empty - add something before checking out.</p>
   </div>
 
   <div th:unless="${cartEmpty}" class="two-col">
@@ -20,7 +20,7 @@
         <p th:if="${authError}" class="alert alert-error" th:text="${authError}">Error</p>
 
         <div>
-          <p class="muted" style="margin-bottom:12px">Create an account to place this order — your cart carries over, and you&apos;ll be able to track it from Orders afterward.</p>
+          <p class="muted" style="margin-bottom:12px">Create an account to place this order - your cart carries over, and you&apos;ll be able to track it from Orders afterward.</p>
 
           <form method="post" th:action="@{/checkout/register}" th:object="${registerRequest}" novalidate>
             <div class="field-row">

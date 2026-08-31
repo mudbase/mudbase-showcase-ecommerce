@@ -8,7 +8,7 @@ export default function HomeScreen(): React.JSX.Element {
       <View className="gap-1 px-4 pb-4 pt-2">
         <Text className="font-semibold text-2xl text-foreground">Commonwealth Goods</Text>
         <Text className="text-sm text-muted-foreground">
-          Every product, order, cart, and payment here is served by a real Mudbase project — no custom backend.
+          Every product, order, cart, and payment here is served by a real Mudbase project - no custom backend.
         </Text>
       </View>
       <ProductGrid />

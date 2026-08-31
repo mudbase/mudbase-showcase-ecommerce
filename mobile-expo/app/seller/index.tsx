@@ -15,7 +15,7 @@ export default function SellerDashboardScreen(): React.JSX.Element {
   // Web's seller dashboard subscribes to a Socket.IO room for live order
   // updates (web/src/hooks/useOrdersLive.ts). socket.io-client needs extra
   // native polyfills to run on React Native/Hermes that aren't worth the
-  // dependency weight for this reference app, so this screen polls instead —
+  // dependency weight for this reference app, so this screen polls instead -
   // a deliberate simplification, not a Mudbase platform limitation (see
   // README "Deviations from the web version").
   const ordersQuery = useDocuments(
@@ -46,7 +46,7 @@ export default function SellerDashboardScreen(): React.JSX.Element {
         ) : ordersQuery.isError ? (
           <Text className="text-sm text-destructive">Couldn&apos;t load orders.</Text>
         ) : orders.length === 0 ? (
-          <EmptyState message="No orders yet — they'll appear here once one comes in." />
+          <EmptyState message="No orders yet - they'll appear here once one comes in." />
         ) : (
           <View>
             {orders.map((order) => (

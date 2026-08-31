@@ -117,7 +117,7 @@ export function ProductForm({ initialValues, onSave }: ProductFormProps): React.
         {errors.imageUrl && <p className="text-xs text-destructive">{errors.imageUrl.message}</p>}
         <p className="text-xs text-muted-foreground">
           Mudbase file uploads require an owner/admin/developer role, which project end-users (sellers included)
-          don&apos;t have — see README &ldquo;Known limitations&rdquo;. Paste a hosted image URL for now.
+          don&apos;t have - see README &ldquo;Known limitations&rdquo;. Paste a hosted image URL for now.
         </p>
       </div>
 
@@ -145,7 +145,7 @@ export function ProductForm({ initialValues, onSave }: ProductFormProps): React.
           </Button>
         )}
         <p className="text-xs text-muted-foreground">
-          Shown as a rotating gallery on the product page — shoppers can also click through photos manually.
+          Shown as a rotating gallery on the product page - shoppers can also click through photos manually.
         </p>
       </div>
 

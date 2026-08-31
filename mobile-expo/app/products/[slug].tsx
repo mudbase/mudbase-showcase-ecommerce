@@ -16,7 +16,7 @@ import { LoadingBlock } from "@/components/ui/LoadingBlock";
 const paramsSchema = z.object({ slug: z.string().min(1) });
 
 export default function ProductDetailScreen(): React.JSX.Element {
-  // All hooks run unconditionally on every render (Rules of Hooks) — an
+  // All hooks run unconditionally on every render (Rules of Hooks) - an
   // invalid/missing slug param redirects via an effect instead of an early
   // return, and the query is simply disabled until the param is valid.
   const params = useLocalSearchParams();
